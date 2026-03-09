@@ -48,7 +48,6 @@ export interface InvoiceOut {
   id: number;
   invoice_number?: string;
   vendor_id: number;
-  po_id?: number;
   currency?: string;
   due_date?: string;
   subtotal?: number;
@@ -73,7 +72,6 @@ export interface OrderedItemOut {
   quantity?: number;
   unit_price?: number;
   total_price?: number;
-  invoiced_quantity?: number;
   created_at?: string;
 }
 

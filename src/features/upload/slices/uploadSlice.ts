@@ -3,6 +3,31 @@ import type { PayloadAction } from "@reduxjs/toolkit";
 import { extractionService } from "../services/extractionService";
 import type { ExtractionResult } from "../services/extractionService";
 
+/* ---- sessionStorage helpers for surviving page refresh ---- */
+
+const RESULT_KEY = "payu_extraction_result";
+
+function saveResultToStorage(result: ExtractionResult) {
+  try {
+    sessionStorage.setItem(RESULT_KEY, JSON.stringify(result));
+  } catch { /* quota errors – ignore */ }
+}
+
+function loadResultFromStorage(): ExtractionResult | null {
+  try {
+    const raw = sessionStorage.getItem(RESULT_KEY);
+    return raw ? (JSON.parse(raw) as ExtractionResult) : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearResultStorage() {
+  sessionStorage.removeItem(RESULT_KEY);
+}
+
+/* ---- slice state ---- */
+
 interface UploadState {
   loading: boolean;
   error: string | null;
@@ -12,7 +37,7 @@ interface UploadState {
 const initialState: UploadState = {
   loading: false,
   error: null,
-  result: null,
+  result: loadResultFromStorage(),
 };
 
 export const extractDocument = createAsyncThunk<
@@ -41,9 +66,16 @@ const uploadSlice = createSlice({
       state.loading = false;
       state.error = null;
       state.result = null;
+      clearResultStorage();
     },
     clearUploadError(state) {
       state.error = null;
+    },
+    restoreResult(state, action: PayloadAction<ExtractionResult>) {
+      state.loading = false;
+      state.error = null;
+      state.result = action.payload;
+      saveResultToStorage(action.payload);
     },
   },
   extraReducers: (builder) => {
@@ -52,12 +84,14 @@ const uploadSlice = createSlice({
         state.loading = true;
         state.error = null;
         state.result = null;
+        clearResultStorage();
       })
       .addCase(
         extractDocument.fulfilled,
         (state, action: PayloadAction<ExtractionResult>) => {
           state.loading = false;
           state.result = action.payload;
+          saveResultToStorage(action.payload);
         },
       )
       .addCase(extractDocument.rejected, (state, action) => {
@@ -67,5 +101,5 @@ const uploadSlice = createSlice({
   },
 });
 
-export const { resetUpload, clearUploadError } = uploadSlice.actions;
+export const { resetUpload, clearUploadError, restoreResult } = uploadSlice.actions;
 export default uploadSlice.reducer;

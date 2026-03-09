@@ -1,8 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "@/hooks/useAppStore";
 import { resetUpload } from "@/features/upload";
+import {
+  fetchPendingReviews,
+  addReviewItem,
+  removeReviewItem,
+} from "../slices/reviewSlice";
 import { reviewService } from "../services/reviewService";
+import type { ExtractionResult } from "@/features/upload/services/extractionService";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,10 +33,6 @@ import {
   Eye,
 } from "lucide-react";
 
-/* ------------------------------------------------------------------ */
-/*  Editable Line Item shape                                          */
-/* ------------------------------------------------------------------ */
-
 interface LineItemForm {
   line_number: number;
   item_code: string;
@@ -41,27 +43,22 @@ interface LineItemForm {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Component                                                         */
+/*  Single document review form (rendered per tab)                    */
 /* ------------------------------------------------------------------ */
 
-export function ReviewPage() {
-  const navigate = useNavigate();
-  const dispatch = useAppDispatch();
-  const { result } = useAppSelector((s) => s.upload);
-
-  /* ── Derived from Redux ────────────────────────────────── */
-
-  const isInvoice = result?.document_type === "invoice";
-  const extractedData = (result?.extracted_data ?? {}) as Record<
-    string,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    any
-  >;
-  const score = result?.score;
-  const fileUrl = result?.file_url;
-  const storedRecord = result?.stored_record;
-
-  /* ── Form state ────────────────────────────────────────── */
+function DocumentReviewForm({
+  item,
+  onSubmitted,
+}: {
+  item: ExtractionResult;
+  onSubmitted: () => void;
+}) {
+  const isInvoice = item.document_type === "invoice";
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const extractedData = (item.extracted_data ?? {}) as Record<string, any>;
+  const score = item.score;
+  const fileUrl = item.file_url;
+  const storedRecord = item.stored_record!;
 
   const [form, setForm] = useState(() => ({
     invoice_number: String(extractedData.invoice_number ?? ""),
@@ -84,14 +81,14 @@ export function ReviewPage() {
   const [lineItems, setLineItems] = useState<LineItemForm[]>(() =>
     ((extractedData.line_items as unknown[]) ?? []).map(
       (raw: unknown, idx: number) => {
-        const item = raw as Record<string, unknown>;
+        const li = raw as Record<string, unknown>;
         return {
-          line_number: Number(item.line_number ?? idx + 1),
-          item_code: String(item.item_code ?? ""),
-          item_description: String(item.item_description ?? ""),
-          quantity: String(item.quantity ?? ""),
-          unit_price: String(item.unit_price ?? ""),
-          total_price: String(item.total_price ?? ""),
+          line_number: Number(li.line_number ?? idx + 1),
+          item_code: String(li.item_code ?? ""),
+          item_description: String(li.item_description ?? ""),
+          quantity: String(li.quantity ?? ""),
+          unit_price: String(li.unit_price ?? ""),
+          total_price: String(li.total_price ?? ""),
         };
       },
     ),
@@ -100,41 +97,19 @@ export function ReviewPage() {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
-  /* ── Early return if no data ───────────────────────────── */
-
-  if (!result || !storedRecord) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <p className="text-muted-foreground">
-          No extraction data available. Upload a document first.
-        </p>
-        <Button variant="outline" onClick={() => navigate("/upload")}>
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Go to Upload
-        </Button>
-      </div>
-    );
-  }
-
-  /* ── Helpers ───────────────────────────────────────────── */
-
-  const updateField = (field: string, value: string) => {
+  const updateField = (field: string, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
-  };
 
   const updateLineItem = (
     index: number,
     field: keyof LineItemForm,
     value: string | number,
-  ) => {
+  ) =>
     setLineItems((prev) =>
-      prev.map((item, i) =>
-        i === index ? { ...item, [field]: value } : item,
-      ),
+      prev.map((li, i) => (i === index ? { ...li, [field]: value } : li)),
     );
-  };
 
-  const addLineItem = () => {
+  const addLineItem = () =>
     setLineItems((prev) => [
       ...prev,
       {
@@ -146,13 +121,9 @@ export function ReviewPage() {
         total_price: "",
       },
     ]);
-  };
 
-  const removeLineItem = (index: number) => {
+  const removeLineItem = (index: number) =>
     setLineItems((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  /* ── Submit ────────────────────────────────────────────── */
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -194,8 +165,6 @@ export function ReviewPage() {
             : undefined,
           line_items: items,
         });
-        dispatch(resetUpload());
-        navigate("/invoices");
       } else {
         await reviewService.submitPOReview(storedRecord.id, {
           po_number: form.po_number || undefined,
@@ -216,9 +185,9 @@ export function ReviewPage() {
             : undefined,
           line_items: items,
         });
-        dispatch(resetUpload());
-        navigate("/purchase-orders");
       }
+
+      onSubmitted();
     } catch (err: unknown) {
       const axiosErr = err as {
         response?: { data?: { detail?: string } };
@@ -234,56 +203,25 @@ export function ReviewPage() {
     }
   };
 
-  /* ── Determine preview type ────────────────────────────── */
-
-  const isPdf =
-    fileUrl?.toLowerCase().includes(".pdf") ??
-    false;
-
-  /* ── Render ────────────────────────────────────────────── */
+  const isPdf = fileUrl?.toLowerCase().includes(".pdf") ?? false;
 
   return (
     <div className="space-y-4">
-      {/* Page header */}
-      <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={() => navigate("/upload")}
-        >
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back
-        </Button>
-        <div className="flex-1">
-          <h1 className="text-2xl font-bold tracking-tight">
-            Review {isInvoice ? "Invoice" : "Purchase Order"}
-          </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Verify the extracted data, make corrections, and submit.
-          </p>
+      {score && (
+        <div className="flex items-center gap-2 justify-end">
+          <span
+            className={`text-lg font-bold ${
+              score.requires_review ? "text-amber-600" : "text-emerald-600"
+            }`}
+          >
+            {score.percentage}%
+          </span>
+          <Badge variant={score.requires_review ? "warning" : "success"}>
+            {score.requires_review ? "Review Required" : "Good Quality"}
+          </Badge>
         </div>
-        {/* Score badge */}
-        {score && (
-          <div className="flex items-center gap-2">
-            <span
-              className={`text-lg font-bold ${
-                score.requires_review
-                  ? "text-amber-600"
-                  : "text-emerald-600"
-              }`}
-            >
-              {score.percentage}%
-            </span>
-            <Badge
-              variant={score.requires_review ? "warning" : "success"}
-            >
-              {score.requires_review ? "Review Required" : "Good Quality"}
-            </Badge>
-          </div>
-        )}
-      </div>
+      )}
 
-      {/* Error banner */}
       {submitError && (
         <div className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/5 px-4 py-3">
           <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
@@ -298,9 +236,8 @@ export function ReviewPage() {
         </div>
       )}
 
-      {/* ── Split View ─────────────────────────────────────── */}
       <div className="flex flex-col lg:flex-row gap-6">
-        {/* ── LEFT: Document Preview ─────────────────────── */}
+        {/* LEFT: Document Preview */}
         <div className="lg:w-3/5 min-w-0">
           <div className="lg:sticky lg:top-4">
             <Card className="border shadow-sm">
@@ -328,26 +265,38 @@ export function ReviewPage() {
                     <iframe
                       src={fileUrl}
                       className="w-full rounded-lg border"
-                      style={{ height: "calc(100vh - 160px)", minHeight: 600 }}
+                      style={{
+                        height: "calc(100vh - 200px)",
+                        minHeight: 600,
+                      }}
                       title="Document Preview"
                     />
                   ) : (
                     <div
                       className="flex items-center justify-center rounded-lg border bg-muted/30 p-3 overflow-auto"
-                      style={{ height: "calc(100vh - 160px)", minHeight: 600 }}
+                      style={{
+                        height: "calc(100vh - 200px)",
+                        minHeight: 600,
+                      }}
                     >
                       <img
                         src={fileUrl}
                         alt="Document Preview"
                         className="max-w-full h-auto rounded-lg object-contain"
-                        style={{ maxHeight: "calc(100vh - 200px)", minHeight: 500 }}
+                        style={{
+                          maxHeight: "calc(100vh - 240px)",
+                          minHeight: 500,
+                        }}
                       />
                     </div>
                   )
                 ) : (
                   <div
                     className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/50 text-muted-foreground"
-                    style={{ height: "calc(100vh - 160px)", minHeight: 600 }}
+                    style={{
+                      height: "calc(100vh - 200px)",
+                      minHeight: 600,
+                    }}
                   >
                     <FileText className="h-12 w-12 mb-3 opacity-40" />
                     <p className="text-sm">No document preview available</p>
@@ -358,9 +307,8 @@ export function ReviewPage() {
           </div>
         </div>
 
-        {/* ── RIGHT: Editable Form ───────────────────────── */}
+        {/* RIGHT: Editable Form */}
         <div className="lg:w-2/5 space-y-5 pb-8 min-w-0">
-          {/* ─ Document Info ─────────────────────────────── */}
           <Card className="border shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
@@ -468,7 +416,6 @@ export function ReviewPage() {
             </CardContent>
           </Card>
 
-          {/* ─ Vendor Info ───────────────────────────────── */}
           <Card className="border shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
@@ -532,7 +479,6 @@ export function ReviewPage() {
             </CardContent>
           </Card>
 
-          {/* ─ Line Items (editable table) ───────────────── */}
           <Card className="border shadow-sm">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
@@ -542,11 +488,7 @@ export function ReviewPage() {
                     ({lineItems.length})
                   </span>
                 </CardTitle>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={addLineItem}
-                >
+                <Button variant="outline" size="sm" onClick={addLineItem}>
                   <Plus className="h-3.5 w-3.5 mr-1" />
                   Add Row
                 </Button>
@@ -579,17 +521,17 @@ export function ReviewPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {lineItems.map((item, idx) => (
+                    {lineItems.map((li, idx) => (
                       <tr
                         key={idx}
                         className="border-b last:border-0 hover:bg-muted/30"
                       >
                         <td className="px-3 py-1.5 text-muted-foreground tabular-nums">
-                          {item.line_number}
+                          {li.line_number}
                         </td>
                         <td className="px-2 py-1.5">
                           <Input
-                            value={item.item_code}
+                            value={li.item_code}
                             onChange={(e) =>
                               updateLineItem(idx, "item_code", e.target.value)
                             }
@@ -598,7 +540,7 @@ export function ReviewPage() {
                         </td>
                         <td className="px-2 py-1.5">
                           <Input
-                            value={item.item_description}
+                            value={li.item_description}
                             onChange={(e) =>
                               updateLineItem(
                                 idx,
@@ -612,7 +554,7 @@ export function ReviewPage() {
                         <td className="px-2 py-1.5">
                           <Input
                             type="number"
-                            value={item.quantity}
+                            value={li.quantity}
                             onChange={(e) =>
                               updateLineItem(idx, "quantity", e.target.value)
                             }
@@ -623,7 +565,7 @@ export function ReviewPage() {
                         <td className="px-2 py-1.5">
                           <Input
                             type="number"
-                            value={item.unit_price}
+                            value={li.unit_price}
                             onChange={(e) =>
                               updateLineItem(
                                 idx,
@@ -638,7 +580,7 @@ export function ReviewPage() {
                         <td className="px-2 py-1.5">
                           <Input
                             type="number"
-                            value={item.total_price}
+                            value={li.total_price}
                             onChange={(e) =>
                               updateLineItem(
                                 idx,
@@ -677,7 +619,6 @@ export function ReviewPage() {
             </CardContent>
           </Card>
 
-          {/* ─ Financial Summary ─────────────────────────── */}
           <Card className="border shadow-sm">
             <CardHeader className="pb-3">
               <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
@@ -692,9 +633,7 @@ export function ReviewPage() {
                     id="subtotal"
                     type="number"
                     value={form.subtotal}
-                    onChange={(e) =>
-                      updateField("subtotal", e.target.value)
-                    }
+                    onChange={(e) => updateField("subtotal", e.target.value)}
                     step="any"
                   />
                 </div>
@@ -704,9 +643,7 @@ export function ReviewPage() {
                     id="tax_amount"
                     type="number"
                     value={form.tax_amount}
-                    onChange={(e) =>
-                      updateField("tax_amount", e.target.value)
-                    }
+                    onChange={(e) => updateField("tax_amount", e.target.value)}
                     step="any"
                   />
                 </div>
@@ -723,9 +660,7 @@ export function ReviewPage() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <Label htmlFor="total_amount">
-                    Total Amount
-                  </Label>
+                  <Label htmlFor="total_amount">Total Amount</Label>
                   <Input
                     id="total_amount"
                     type="number"
@@ -741,7 +676,6 @@ export function ReviewPage() {
             </CardContent>
           </Card>
 
-          {/* ─ Score Breakdown (collapsible) ──────────────── */}
           {score?.breakdown && score.breakdown.length > 0 && (
             <Card className="border shadow-sm">
               <CardHeader className="pb-3">
@@ -762,9 +696,7 @@ export function ReviewPage() {
                         ) : (
                           <AlertCircle className="h-3.5 w-3.5 text-amber-500" />
                         )}
-                        <span className="text-foreground">
-                          {entry.field}
-                        </span>
+                        <span className="text-foreground">{entry.field}</span>
                       </div>
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-muted-foreground">
@@ -781,7 +713,6 @@ export function ReviewPage() {
             </Card>
           )}
 
-          {/* ─ Actions ───────────────────────────────────── */}
           <div className="flex gap-3 pt-2">
             <Button
               onClick={handleSubmit}
@@ -803,16 +734,152 @@ export function ReviewPage() {
                 </>
               )}
             </Button>
-            <Button
-              variant="outline"
-              onClick={() => navigate("/upload")}
-              disabled={submitting}
-            >
-              Cancel
-            </Button>
           </div>
         </div>
       </div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/*  Tab label helper                                                  */
+/* ------------------------------------------------------------------ */
+
+function tabLabel(item: ExtractionResult): string {
+  if (item.document_type === "invoice") {
+    const num = item.extracted_data?.invoice_number;
+    return num ? `INV ${num}` : `Invoice #${item.stored_record?.id}`;
+  }
+  const num = item.extracted_data?.po_number;
+  return num ? `PO ${num}` : `PO #${item.stored_record?.id}`;
+}
+
+/* ------------------------------------------------------------------ */
+/*  Main review page with tabs                                        */
+/* ------------------------------------------------------------------ */
+
+export function ReviewPage() {
+  const navigate = useNavigate();
+  const dispatch = useAppDispatch();
+  const { items, loading, fetched } = useAppSelector((s) => s.review);
+  const uploadResult = useAppSelector((s) => s.upload.result);
+
+  const [activeIdx, setActiveIdx] = useState(0);
+
+  useEffect(() => {
+    if (!fetched) {
+      dispatch(fetchPendingReviews());
+    }
+  }, [dispatch, fetched]);
+
+  useEffect(() => {
+    if (uploadResult?.stored_record && !uploadResult.duplicate) {
+      dispatch(addReviewItem(uploadResult));
+    }
+  }, [uploadResult, dispatch]);
+
+  useEffect(() => {
+    if (activeIdx >= items.length && items.length > 0) {
+      setActiveIdx(items.length - 1);
+    }
+  }, [items.length, activeIdx]);
+
+  const handleSubmitted = (item: ExtractionResult) => {
+    dispatch(
+      removeReviewItem({
+        id: item.stored_record!.id,
+        document_type: item.document_type,
+      }),
+    );
+    dispatch(resetUpload());
+
+    if (items.length <= 1) {
+      navigate("/dashboard");
+    }
+  };
+
+  if (loading && !fetched) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <LoadingSpinner size={32} />
+        <p className="text-muted-foreground text-sm">
+          Loading pending reviews…
+        </p>
+      </div>
+    );
+  }
+
+  if (items.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <CheckCircle2 className="h-12 w-12 text-emerald-500 opacity-60" />
+        <p className="text-muted-foreground">
+          No documents pending verification.
+        </p>
+        <Button variant="outline" onClick={() => navigate("/upload")}>
+          <ArrowLeft className="h-4 w-4 mr-2" />
+          Upload a Document
+        </Button>
+      </div>
+    );
+  }
+
+  const activeItem = items[activeIdx] ?? items[0];
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-4">
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => navigate("/upload")}
+        >
+          <ArrowLeft className="h-4 w-4 mr-1" />
+          Back
+        </Button>
+        <div className="flex-1">
+          <h1 className="text-2xl font-bold tracking-tight">
+            Human Verification
+          </h1>
+          <p className="text-muted-foreground text-sm mt-0.5">
+            {items.length} document{items.length !== 1 ? "s" : ""} pending
+            review
+          </p>
+        </div>
+      </div>
+
+      {items.length > 1 && (
+        <div className="flex gap-1 overflow-x-auto border-b pb-px">
+          {items.map((item, idx) => {
+            const isActive = idx === activeIdx;
+            const isInv = item.document_type === "invoice";
+            return (
+              <button
+                key={`${item.document_type}-${item.stored_record?.id}`}
+                onClick={() => setActiveIdx(idx)}
+                className={`flex items-center gap-2 px-4 py-2 text-sm font-medium whitespace-nowrap rounded-t-lg border border-b-0 transition-colors ${
+                  isActive
+                    ? "bg-background text-foreground border-border -mb-px"
+                    : "bg-muted/50 text-muted-foreground border-transparent hover:text-foreground hover:bg-muted"
+                }`}
+              >
+                {isInv ? (
+                  <FileText className="h-3.5 w-3.5" />
+                ) : (
+                  <FileSpreadsheet className="h-3.5 w-3.5" />
+                )}
+                {tabLabel(item)}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <DocumentReviewForm
+        key={`${activeItem.document_type}-${activeItem.stored_record?.id}`}
+        item={activeItem}
+        onSubmitted={() => handleSubmitted(activeItem)}
+      />
     </div>
   );
 }
