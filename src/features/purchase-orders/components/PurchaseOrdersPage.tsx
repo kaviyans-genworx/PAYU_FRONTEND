@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { poService } from "../services/poService";
 import type { PurchaseOrderOut } from "@/types/documents";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,23 +11,6 @@ import {
 } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { FileSpreadsheet, RefreshCw, AlertCircle } from "lucide-react";
-
-function statusVariant(
-  status: string,
-): "success" | "warning" | "destructive" | "secondary" {
-  switch (status.toUpperCase()) {
-    case "EXTRACTED":
-    case "MATCHED":
-      return "success";
-    case "REVIEW_REQUIRED":
-    case "PENDING":
-      return "warning";
-    case "REJECTED":
-      return "destructive";
-    default:
-      return "secondary";
-  }
-}
 
 export function PurchaseOrdersPage() {
   const navigate = useNavigate();
@@ -107,9 +89,6 @@ export function PurchaseOrdersPage() {
                     <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
                       PO #
                     </th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
-                      Status
-                    </th>
                     <th className="text-right px-4 py-2.5 font-medium text-muted-foreground">
                       Total Amount
                     </th>
@@ -133,11 +112,6 @@ export function PurchaseOrdersPage() {
                     >
                       <td className="px-4 py-2.5 font-medium">
                         {po.po_number || "—"}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        <Badge variant={statusVariant(po.status)}>
-                          {po.status}
-                        </Badge>
                       </td>
                       <td className="px-4 py-2.5 text-right tabular-nums">
                         {po.total_amount != null

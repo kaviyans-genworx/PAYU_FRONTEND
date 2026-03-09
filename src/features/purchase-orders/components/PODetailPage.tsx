@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useAppDispatch } from "@/hooks/useAppStore";
+import { addReviewItem } from "@/features/review/slices/reviewSlice";
 import { poService } from "../services/poService";
 import type { PurchaseOrderOut } from "@/types/documents";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,23 +34,6 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-function statusVariant(
-  status: string,
-): "success" | "warning" | "destructive" | "secondary" {
-  switch (status.toUpperCase()) {
-    case "EXTRACTED":
-    case "MATCHED":
-      return "success";
-    case "REVIEW_REQUIRED":
-    case "PENDING":
-      return "warning";
-    case "REJECTED":
-      return "destructive";
-    default:
-      return "secondary";
-  }
-}
-
 function formatCurrency(value: number | null | undefined): string {
   if (value == null) return "—";
   return value.toLocaleString(undefined, {
@@ -65,6 +49,7 @@ function formatCurrency(value: number | null | undefined): string {
 export function PODetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [po, setPO] = useState<PurchaseOrderOut | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +60,37 @@ export function PODetailPage() {
     setError(null);
     poService
       .getPurchaseOrder(Number(id))
-      .then(setPO)
+      .then((record) => {
+        if (record.status?.toUpperCase() === "PENDING") {
+          dispatch(
+            addReviewItem({
+              document_type: "po",
+              extracted_data: {
+                po_number: record.po_number,
+                currency: record.currency,
+                po_date: record.po_date,
+                subtotal: record.subtotal,
+                tax_amount: record.tax_amount,
+                discount_amount: record.discount_amount,
+                total_amount: record.total_amount,
+                line_items: record.line_items?.map((li, idx) => ({
+                  line_number: li.line_number ?? idx + 1,
+                  item_code: li.item_code,
+                  item_description: li.item_description,
+                  quantity: li.quantity,
+                  unit_price: li.unit_price,
+                  total_price: li.total_price,
+                })),
+              },
+              stored_record: { id: record.id, po_number: record.po_number },
+              file_url: record.file_url,
+            }),
+          );
+          navigate("/review", { replace: true });
+          return;
+        }
+        setPO(record);
+      })
       .catch((err: unknown) => {
         const msg =
           (err as { response?: { data?: { detail?: string } } }).response?.data
@@ -86,7 +101,7 @@ export function PODetailPage() {
         setError(msg);
       })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, dispatch, navigate]);
 
   if (loading) {
     return (
@@ -134,7 +149,6 @@ export function PODetailPage() {
             PO {po.po_number || `#${po.id}`}
           </h1>
         </div>
-        <Badge variant={statusVariant(po.status)}>{po.status}</Badge>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">

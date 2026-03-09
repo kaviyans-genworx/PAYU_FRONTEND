@@ -27,6 +27,16 @@ export interface ExtractionResult {
   duplicate?: boolean;
 }
 
+export interface PendingReviewsResponse {
+  invoices: ExtractionResult[];
+  purchase_orders: ExtractionResult[];
+}
+
+function authHeaders() {
+  const token = localStorage.getItem(TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export const extractionService = {
   async extractDocument(
     file: File,
@@ -36,8 +46,6 @@ export const extractionService = {
     formData.append("file", file);
     formData.append("doc_type", docType);
 
-    const token = localStorage.getItem(TOKEN_KEY);
-
     try {
       const { data } = await axios.post<ExtractionResult>(
         ENDPOINTS.EXTRACTION.EXTRACT,
@@ -45,7 +53,7 @@ export const extractionService = {
         {
           headers: {
             "Content-Type": "multipart/form-data",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...authHeaders(),
           },
         },
       );
@@ -55,6 +63,18 @@ export const extractionService = {
         return { ...err.response.data, duplicate: true };
       }
       throw err;
+    }
+  },
+
+  async getPendingReviews(): Promise<PendingReviewsResponse> {
+    try {
+      const { data } = await axios.get<PendingReviewsResponse>(
+        ENDPOINTS.EXTRACTION.PENDING_REVIEW,
+        { headers: authHeaders() },
+      );
+      return data;
+    } catch {
+      return { invoices: [], purchase_orders: [] };
     }
   },
 };

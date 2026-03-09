@@ -1,7 +1,9 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/hooks/useAppStore";
 import { extractDocument, resetUpload } from "../slices/uploadSlice";
+import { addReviewItem } from "@/features/review/slices/reviewSlice";
+import { extractionService } from "../services/extractionService";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,7 +20,6 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  AlertTriangle,
   Building2,
   Hash,
   Calendar,
@@ -94,7 +95,42 @@ export function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [docType, setDocType] = useState<"invoice" | "po">("invoice");
   const [dragOver, setDragOver] = useState(false);
+  const [recovering, setRecovering] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const PROGRESS_KEY = "payu_extraction_in_progress";
+
+  useEffect(() => {
+    const raw = localStorage.getItem(PROGRESS_KEY);
+    if (!raw || loading) return;
+
+    setRecovering(true);
+    let attempts = 0;
+
+    const poll = setInterval(async () => {
+      attempts++;
+      try {
+        const data = await extractionService.getPendingReviews();
+        const all = [...data.invoices, ...data.purchase_orders];
+        if (all.length > 0) {
+          clearInterval(poll);
+          localStorage.removeItem(PROGRESS_KEY);
+          all.forEach((item) => dispatch(addReviewItem(item)));
+          setRecovering(false);
+          navigate("/review");
+          return;
+        }
+      } catch { /* ignore */ }
+
+      if (attempts >= 40) {
+        clearInterval(poll);
+        localStorage.removeItem(PROGRESS_KEY);
+        setRecovering(false);
+      }
+    }, 3000);
+
+    return () => clearInterval(poll);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleFile = useCallback((f: File | null) => {
     if (f && ACCEPTED_TYPES.includes(f.type)) {
@@ -114,10 +150,13 @@ export function UploadPage() {
 
   const handleSubmit = async () => {
     if (!file) return;
+    localStorage.setItem(PROGRESS_KEY, JSON.stringify({ docType }));
     const resultAction = await dispatch(extractDocument({ file, docType }));
+    localStorage.removeItem(PROGRESS_KEY);
     if (extractDocument.fulfilled.match(resultAction)) {
       const payload = resultAction.payload;
       if (!payload.duplicate) {
+        dispatch(addReviewItem(payload));
         navigate("/review");
       }
     }
@@ -135,6 +174,51 @@ export function UploadPage() {
   const isInvoice = result?.document_type === "invoice";
   const isDuplicate = !!result?.duplicate;
   const currency = (d.currency as string) ?? "USD";
+
+  /* ---- Recovery: extraction was in progress before refresh ---- */
+  if (recovering) {
+    return (
+      <div className="max-w-md mx-auto flex flex-col items-center pt-12">
+        <h1 className="text-2xl font-bold tracking-tight mb-2">
+          Resuming Extraction
+        </h1>
+        <p className="text-muted-foreground mb-8 text-center">
+          An extraction was in progress. Waiting for results…
+        </p>
+        <div className="w-full">
+          <ExtractionProgress isActive />
+        </div>
+      </div>
+    );
+  }
+
+  /* ---- Extraction takeover: hide all upload controls ---- */
+  if (loading) {
+    return (
+      <div className="max-w-md mx-auto flex flex-col items-center pt-12">
+        <h1 className="text-2xl font-bold tracking-tight mb-2">
+          Processing Document
+        </h1>
+        <p className="text-muted-foreground mb-8 text-center">
+          Please wait while we extract and structure your document data.
+        </p>
+        {file && (
+          <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-4 py-3 mb-8 w-full">
+            <FileText className="h-4 w-4 text-primary shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{file.name}</p>
+              <p className="text-xs text-muted-foreground">
+                {(file.size / 1024).toFixed(1)} KB
+              </p>
+            </div>
+          </div>
+        )}
+        <div className="w-full">
+          <ExtractionProgress isActive />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
@@ -265,9 +349,6 @@ export function UploadPage() {
           </div>
         </CardContent>
       </Card>
-
-      {/* Extraction progress steps */}
-      <ExtractionProgress isActive={loading} />
 
       {/* Error */}
       {error && (

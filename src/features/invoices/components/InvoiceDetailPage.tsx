@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { useAppDispatch } from "@/hooks/useAppStore";
+import { addReviewItem } from "@/features/review/slices/reviewSlice";
 import { invoiceService } from "../services/invoiceService";
 import type { InvoiceOut } from "@/types/documents";
 import { Badge } from "@/components/ui/badge";
@@ -65,6 +67,7 @@ function formatCurrency(value: number | null | undefined): string {
 export function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const dispatch = useAppDispatch();
   const [invoice, setInvoice] = useState<InvoiceOut | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -75,7 +78,37 @@ export function InvoiceDetailPage() {
     setError(null);
     invoiceService
       .getInvoice(Number(id))
-      .then(setInvoice)
+      .then((inv) => {
+        if (inv.status?.toUpperCase() === "PENDING") {
+          dispatch(
+            addReviewItem({
+              document_type: "invoice",
+              extracted_data: {
+                invoice_number: inv.invoice_number,
+                currency: inv.currency,
+                due_date: inv.due_date,
+                subtotal: inv.subtotal,
+                tax_amount: inv.tax_amount,
+                discount_amount: inv.discount_amount,
+                total_amount: inv.total_amount,
+                line_items: inv.line_items?.map((li, idx) => ({
+                  line_number: li.line_number ?? idx + 1,
+                  item_code: li.item_code,
+                  item_description: li.item_description,
+                  quantity: li.quantity,
+                  unit_price: li.unit_price,
+                  total_price: li.total_price,
+                })),
+              },
+              stored_record: { id: inv.id, invoice_number: inv.invoice_number },
+              file_url: inv.file_url,
+            }),
+          );
+          navigate("/review", { replace: true });
+          return;
+        }
+        setInvoice(inv);
+      })
       .catch((err: unknown) => {
         const msg =
           (err as { response?: { data?: { detail?: string } } }).response?.data
@@ -84,7 +117,7 @@ export function InvoiceDetailPage() {
         setError(msg);
       })
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, dispatch, navigate]);
 
   if (loading) {
     return (

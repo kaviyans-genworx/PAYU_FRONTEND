@@ -10,5 +10,6 @@ export const ENDPOINTS = {
   },
   EXTRACTION: {
     EXTRACT: `${CORE_API_BASE_URL}/extraction/extract`,
+    PENDING_REVIEW: `${CORE_API_BASE_URL}/extraction/pending-review`,
   },
 } as const;
