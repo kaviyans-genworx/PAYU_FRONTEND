@@ -1,4 +1,5 @@
 import { useCallback, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/hooks/useAppStore";
 import { extractDocument, resetUpload } from "../slices/uploadSlice";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ import {
   MapPin,
   CreditCard,
 } from "lucide-react";
+import { ExtractionProgress } from "./ExtractionProgress";
 
 const ACCEPTED_TYPES = [
   "application/pdf",
@@ -86,6 +88,7 @@ function SummaryItem({ label, value }: { label: string; value: unknown }) {
 
 export function UploadPage() {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { loading, error, result } = useAppSelector((s) => s.upload);
 
   const [file, setFile] = useState<File | null>(null);
@@ -109,9 +112,15 @@ export function UploadPage() {
     [handleFile],
   );
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!file) return;
-    dispatch(extractDocument({ file, docType }));
+    const resultAction = await dispatch(extractDocument({ file, docType }));
+    if (extractDocument.fulfilled.match(resultAction)) {
+      const payload = resultAction.payload;
+      if (!payload.duplicate) {
+        navigate("/review");
+      }
+    }
   };
 
   const handleReset = () => {
@@ -256,6 +265,9 @@ export function UploadPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Extraction progress steps */}
+      <ExtractionProgress isActive={loading} />
 
       {/* Error */}
       {error && (
