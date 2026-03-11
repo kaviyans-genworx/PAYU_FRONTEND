@@ -4,6 +4,7 @@ import { TOKEN_KEY } from "@/config/constants";
 import type {
   ValidationGroupSummary,
   ValidationGroupDetail,
+  ValidationResultsOut,
 } from "@/types/documents";
 
 function authHeaders() {
@@ -23,6 +24,14 @@ export const validationService = {
   async getGroupDetail(groupId: number): Promise<ValidationGroupDetail> {
     const { data } = await axios.get<ValidationGroupDetail>(
       `${CORE_API_BASE_URL}/api/validations/groups/${groupId}`,
+      { headers: authHeaders() },
+    );
+    return data;
+  },
+
+  async getGroupResults(groupId: number): Promise<ValidationResultsOut> {
+    const { data } = await axios.get<ValidationResultsOut>(
+      `${CORE_API_BASE_URL}/api/validations/groups/${groupId}/results`,
       { headers: authHeaders() },
     );
     return data;

@@ -10,6 +10,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { Pagination } from "@/components/common/Pagination";
+import { usePagination } from "@/hooks/usePagination";
 import { FileSpreadsheet, RefreshCw, AlertCircle } from "lucide-react";
 
 export function PurchaseOrdersPage() {
@@ -17,6 +19,20 @@ export function PurchaseOrdersPage() {
   const [orders, setOrders] = useState<PurchaseOrderOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const {
+    currentPage,
+    totalPages,
+    paginatedItems,
+    totalItems,
+    startIndex,
+    endIndex,
+    hasNextPage,
+    hasPrevPage,
+    nextPage,
+    prevPage,
+    goToPage,
+  } = usePagination(orders, 10);
 
   const fetchOrders = async () => {
     setLoading(true);
@@ -78,7 +94,8 @@ export function PurchaseOrdersPage() {
         <Card className="border shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">
-              {orders.length} purchase order{orders.length > 1 ? "s" : ""}
+              Showing {startIndex + 1}–{endIndex} of {totalItems} purchase
+              order{totalItems > 1 ? "s" : ""}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -104,7 +121,7 @@ export function PurchaseOrdersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.map((po) => (
+                  {paginatedItems.map((po) => (
                     <tr
                       key={po.id}
                       className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
@@ -137,6 +154,18 @@ export function PurchaseOrdersPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              hasNextPage={hasNextPage}
+              hasPrevPage={hasPrevPage}
+              onNextPage={nextPage}
+              onPrevPage={prevPage}
+              onGoToPage={goToPage}
+            />
           </CardContent>
         </Card>
       )}

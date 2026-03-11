@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { DocumentViewer } from "@/components/common/DocumentViewer";
 import {
   ArrowLeft,
   Send,
@@ -31,7 +32,6 @@ import {
   FileSpreadsheet,
   AlertCircle,
   CheckCircle2,
-  Eye,
   Search,
 } from "lucide-react";
 
@@ -310,8 +310,6 @@ function DocumentReviewForm({
     }
   };
 
-  const isPdf = fileUrl?.toLowerCase().includes(".pdf") ?? false;
-
   return (
     <div className="space-y-4">
       {score && (
@@ -346,71 +344,11 @@ function DocumentReviewForm({
       <div className="flex flex-col lg:flex-row gap-6">
         {/* LEFT: Document Preview */}
         <div className="lg:w-3/5 min-w-0">
-          <div className="lg:sticky lg:top-4">
-            <Card className="border shadow-sm">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
-                    <Eye className="h-4 w-4" />
-                    Document Preview
-                  </CardTitle>
-                  {fileUrl && (
-                    <a
-                      href={fileUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-primary hover:underline flex items-center gap-1"
-                    >
-                      Open full size
-                    </a>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent>
-                {fileUrl ? (
-                  isPdf ? (
-                    <iframe
-                      src={fileUrl}
-                      className="w-full rounded-lg border"
-                      style={{
-                        height: "calc(100vh - 200px)",
-                        minHeight: 600,
-                      }}
-                      title="Document Preview"
-                    />
-                  ) : (
-                    <div
-                      className="flex items-center justify-center rounded-lg border bg-muted/30 p-3 overflow-auto"
-                      style={{
-                        height: "calc(100vh - 200px)",
-                        minHeight: 600,
-                      }}
-                    >
-                      <img
-                        src={fileUrl}
-                        alt="Document Preview"
-                        className="max-w-full h-auto rounded-lg object-contain"
-                        style={{
-                          maxHeight: "calc(100vh - 240px)",
-                          minHeight: 500,
-                        }}
-                      />
-                    </div>
-                  )
-                ) : (
-                  <div
-                    className="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-muted-foreground/25 bg-muted/50 text-muted-foreground"
-                    style={{
-                      height: "calc(100vh - 200px)",
-                      minHeight: 600,
-                    }}
-                  >
-                    <FileText className="h-12 w-12 mb-3 opacity-40" />
-                    <p className="text-sm">No document preview available</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          <div className="lg:sticky lg:top-4 h-[calc(100vh-120px)] border rounded-xl shadow-sm overflow-hidden bg-background">
+             <DocumentViewer
+                fileUrl={fileUrl ?? null}
+                title="Document Preview"
+             />
           </div>
         </div>
 

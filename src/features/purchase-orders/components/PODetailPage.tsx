@@ -12,11 +12,10 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { DocumentViewer } from "@/components/common/DocumentViewer";
 import {
   ArrowLeft,
-  FileSpreadsheet,
   AlertCircle,
-  ExternalLink,
 } from "lucide-react";
 
 /* ------------------------------------------------------------------ */
@@ -154,51 +153,12 @@ export function PODetailPage() {
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Left: Document preview */}
         <div className="lg:w-3/5 min-w-0">
-          {po.file_url ? (
-            <Card className="border shadow-sm lg:sticky lg:top-4">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
-                    Document
-                  </CardTitle>
-                  <a
-                    href={po.file_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs text-primary hover:underline flex items-center gap-1"
-                  >
-                    Open <ExternalLink className="h-3 w-3" />
-                  </a>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {po.file_url.toLowerCase().includes(".pdf") ? (
-                  <iframe
-                    src={po.file_url}
-                    className="w-full rounded-lg border"
-                    style={{ height: "calc(100vh - 160px)", minHeight: 600 }}
-                    title="PO Document"
-                  />
-                ) : (
-                  <div className="flex items-center justify-center rounded-lg border bg-muted/30 p-3 overflow-auto" style={{ height: "calc(100vh - 160px)", minHeight: 600 }}>
-                    <img
-                      src={po.file_url}
-                      alt="PO Document"
-                      className="max-w-full h-auto rounded-lg object-contain"
-                      style={{ maxHeight: "calc(100vh - 200px)", minHeight: 500 }}
-                    />
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-                <FileSpreadsheet className="h-12 w-12 opacity-40 mb-3" />
-                <p className="text-sm">No document attached</p>
-              </CardContent>
-            </Card>
-          )}
+          <div className="lg:sticky lg:top-4 h-[calc(100vh-120px)] border rounded-xl shadow-sm overflow-hidden bg-background">
+            <DocumentViewer
+              fileUrl={po.file_url ?? null}
+              title={`PO ${po.po_number || "Document"}`}
+            />
+          </div>
         </div>
 
         {/* Right: PO details */}

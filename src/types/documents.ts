@@ -188,3 +188,27 @@ export interface ValidationGroupDetail {
   merged_invoice_items: MergedItem[];
   merged_po_items: MergedItem[];
 }
+
+// ── Validation Results ───────────────────────────────────────
+
+export interface DiscrepancyOut {
+  discrepancy_type: string;
+  severity: string;
+  po_value?: string;
+  invoice_value?: string;
+  message: string;
+  ai_explanation?: string;
+}
+
+export interface ValidationResultsOut {
+  group_id: number;
+  validation_status?: string;
+  match_status?: string;
+  invoices: InvoiceBrief[];
+  pos: POBrief[];
+  merged_invoice_items: MergedItem[];
+  merged_po_items: MergedItem[];
+  discrepancies: DiscrepancyOut[];
+  ai_summary?: string;
+  ai_suggestions: string[];
+}
