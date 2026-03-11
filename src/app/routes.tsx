@@ -11,6 +11,10 @@ import { UploadPage } from "@/features/upload";
 import { ReviewPage } from "@/features/review";
 import { InvoicesPage, InvoiceDetailPage } from "@/features/invoices";
 import { PurchaseOrdersPage, PODetailPage } from "@/features/purchase-orders";
+import {
+  ValidationGroupsPage,
+  ValidationGroupDetailPage,
+} from "@/features/validation";
 
 export const router = createBrowserRouter([
   {
@@ -63,6 +67,14 @@ export const router = createBrowserRouter([
           {
             path: "purchase-orders/:id",
             element: <PODetailPage />,
+          },
+          {
+            path: "validation",
+            element: <ValidationGroupsPage />,
+          },
+          {
+            path: "validation/:groupId",
+            element: <ValidationGroupDetailPage />,
           },
         ],
       },

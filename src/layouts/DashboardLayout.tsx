@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   Upload,
   FileSpreadsheet,
+  ShieldCheck,
   LogOut,
   Menu,
   X,
@@ -20,6 +21,7 @@ const navItems = [
   { label: "Upload", icon: Upload, href: "/upload" },
   { label: "Invoices", icon: FileText, href: "/invoices" },
   { label: "Purchase Orders", icon: FileSpreadsheet, href: "/purchase-orders" },
+  { label: "Validation", icon: ShieldCheck, href: "/validation" },
 ];
 
 export function DashboardLayout() {

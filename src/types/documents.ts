@@ -146,3 +146,45 @@ export interface POSearchResult {
   total_amount: number | null;
   vendor: VendorSearchResult | null;
 }
+
+// ── Validation Group shapes ──────────────────────────────────
+
+export interface ValidationGroupSummary {
+  id: number;
+  status: string;
+  invoice_count: number;
+  po_count: number;
+  created_at?: string;
+}
+
+export interface InvoiceBrief {
+  id: number;
+  invoice_number?: string;
+  vendor_name?: string;
+  total_amount?: number;
+}
+
+export interface POBrief {
+  id: number;
+  po_number?: string;
+  vendor_name?: string;
+  total_amount?: number;
+}
+
+export interface MergedItem {
+  item_code?: string;
+  item_description?: string;
+  quantity?: number;
+  unit_price?: number;
+  total_price?: number;
+}
+
+export interface ValidationGroupDetail {
+  group_id: number;
+  status: string;
+  created_at?: string;
+  invoices: InvoiceBrief[];
+  pos: POBrief[];
+  merged_invoice_items: MergedItem[];
+  merged_po_items: MergedItem[];
+}
