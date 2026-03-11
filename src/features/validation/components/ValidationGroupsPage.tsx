@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { validationService } from "../services/validationService";
 import type { ValidationGroupSummary } from "@/types/documents";
@@ -9,20 +9,40 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  CardDescription,
 } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
-import { ShieldCheck, RefreshCw, AlertCircle, Eye } from "lucide-react";
+import { Pagination } from "@/components/common/Pagination";
+import { usePagination } from "@/hooks/usePagination";
+import {
+  ShieldCheck,
+  RefreshCw,
+  AlertCircle,
+  Eye,
+  LayoutList,
+  LayoutGrid,
+  CheckCircle2,
+  AlertTriangle,
+  XCircle,
+} from "lucide-react";
+
+type ViewMode = "table" | "card";
 
 function statusVariant(
   status: string,
 ): "success" | "warning" | "destructive" | "secondary" {
   switch (status.toLowerCase()) {
+    case "passed":
     case "validated":
     case "matched":
       return "success";
+    case "issues":
+    case "partial":
+    case "warning":
     case "pending":
       return "warning";
     case "failed":
+    case "error":
     case "mismatched":
       return "destructive";
     default:
@@ -30,11 +50,211 @@ function statusVariant(
   }
 }
 
+type BucketKey = "passed" | "issues" | "failed";
+
+function getBucket(status: string): BucketKey {
+  switch (status.toLowerCase()) {
+    case "passed":
+    case "validated":
+    case "matched":
+      return "passed";
+    case "failed":
+    case "error":
+    case "mismatched":
+      return "failed";
+    case "issues":
+    case "partial":
+    case "warning":
+    case "pending":
+    default:
+      return "issues";
+  }
+}
+
+const bucketConfig: Record<
+  BucketKey,
+  {
+    label: string;
+    icon: typeof CheckCircle2;
+    borderColor: string;
+    bgColor: string;
+    headerBg: string;
+    iconColor: string;
+    textColor: string;
+    cardBorder: string;
+    cardBg: string;
+  }
+> = {
+  failed: {
+    label: "Failed",
+    icon: XCircle,
+    borderColor: "border-red-200 dark:border-red-800",
+    bgColor: "bg-red-50/30 dark:bg-red-950/10",
+    headerBg: "bg-red-50 dark:bg-red-950/30",
+    iconColor: "text-red-600 dark:text-red-400",
+    textColor: "text-red-800 dark:text-red-300",
+    cardBorder: "border-red-200 dark:border-red-800",
+    cardBg: "bg-red-50/50 dark:bg-red-950/20",
+  },
+  issues: {
+    label: "Issues",
+    icon: AlertTriangle,
+    borderColor: "border-amber-200 dark:border-amber-800",
+    bgColor: "bg-amber-50/30 dark:bg-amber-950/10",
+    headerBg: "bg-amber-50 dark:bg-amber-950/30",
+    iconColor: "text-amber-600 dark:text-amber-400",
+    textColor: "text-amber-800 dark:text-amber-300",
+    cardBorder: "border-amber-200 dark:border-amber-800",
+    cardBg: "bg-amber-50/50 dark:bg-amber-950/20",
+  },
+  passed: {
+    label: "Passed",
+    icon: CheckCircle2,
+    borderColor: "border-emerald-200 dark:border-emerald-800",
+    bgColor: "bg-emerald-50/30 dark:bg-emerald-950/10",
+    headerBg: "bg-emerald-50 dark:bg-emerald-950/30",
+    iconColor: "text-emerald-600 dark:text-emerald-400",
+    textColor: "text-emerald-800 dark:text-emerald-300",
+    cardBorder: "border-emerald-200 dark:border-emerald-800",
+    cardBg: "bg-emerald-50/50 dark:bg-emerald-950/20",
+  },
+};
+
+// ─── Per-column card list with independent pagination ─────────
+function BucketColumn({
+  bucket,
+  items,
+  navigate,
+}: {
+  bucket: BucketKey;
+  items: ValidationGroupSummary[];
+  navigate: ReturnType<typeof useNavigate>;
+}) {
+  const config = bucketConfig[bucket];
+  const Icon = config.icon;
+  const pagination = usePagination(items, 6);
+
+  return (
+    <div
+      className={`flex flex-col rounded-xl border ${config.borderColor} ${config.bgColor} overflow-hidden`}
+    >
+      {/* Column header */}
+      <div
+        className={`flex items-center gap-2 px-4 py-3 ${config.headerBg} border-b ${config.borderColor}`}
+      >
+        <Icon className={`h-4.5 w-4.5 ${config.iconColor}`} />
+        <span className={`text-sm font-semibold ${config.textColor}`}>
+          {config.label}
+        </span>
+        <span
+          className={`ml-auto inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${config.textColor} ${config.bgColor} border ${config.borderColor}`}
+        >
+          {items.length}
+        </span>
+      </div>
+
+      {/* Cards */}
+      <div className="flex-1 p-3 space-y-2.5 min-h-[200px]">
+        {pagination.paginatedItems.length === 0 ? (
+          <div className="flex items-center justify-center h-full text-xs text-muted-foreground py-8">
+            No validations
+          </div>
+        ) : (
+          pagination.paginatedItems.map((g) => (
+            <Card
+              key={g.id}
+              className={`border ${config.cardBorder} ${config.cardBg} hover:shadow-md transition-all cursor-pointer group`}
+              onClick={() => navigate(`/validation/${g.id}`)}
+            >
+              <CardHeader className="pb-1.5 pt-3 px-3.5">
+                <div className="flex items-start justify-between gap-2">
+                  <CardTitle className="text-sm font-semibold leading-snug">
+                    Group #{g.id}
+                  </CardTitle>
+                  <Badge
+                    variant={statusVariant(g.status)}
+                    className="shrink-0 text-[10px] px-1.5"
+                  >
+                    {g.status}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent className="px-3.5 pb-3 pt-0">
+                <CardDescription className="text-xs leading-relaxed mb-1.5">
+                  {g.invoice_count} invoice
+                  {g.invoice_count !== 1 ? "s" : ""} &middot; {g.po_count}{" "}
+                  purchase order
+                  {g.po_count !== 1 ? "s" : ""}
+                </CardDescription>
+                <div className="flex items-center justify-between">
+                  <span className="text-[11px] text-muted-foreground">
+                    {g.created_at
+                      ? new Date(g.created_at).toLocaleDateString()
+                      : "—"}
+                  </span>
+                  <span className="text-[11px] font-medium text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+                    <Eye className="h-3 w-3" />
+                    View
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* Per-column pagination */}
+      {items.length > 0 && (
+        <div className={`border-t ${config.borderColor}`}>
+          <Pagination
+            currentPage={pagination.currentPage}
+            totalPages={pagination.totalPages}
+            totalItems={pagination.totalItems}
+            startIndex={pagination.startIndex}
+            endIndex={pagination.endIndex}
+            hasNextPage={pagination.hasNextPage}
+            hasPrevPage={pagination.hasPrevPage}
+            onNextPage={pagination.nextPage}
+            onPrevPage={pagination.prevPage}
+            onGoToPage={pagination.goToPage}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────
 export function ValidationGroupsPage() {
   const navigate = useNavigate();
   const [groups, setGroups] = useState<ValidationGroupSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const savedLayout = localStorage.getItem("validation_current_layout");
+    if (savedLayout === "card") return "card";
+    return "table";
+  });
+
+  const handleSetViewMode = (mode: ViewMode) => {
+    setViewMode(mode);
+    localStorage.setItem("validation_current_layout", mode);
+  };
+
+  const tablePagination = usePagination(groups, 10);
+
+  // Bucket groups for Card View
+  const buckets = useMemo(() => {
+    const b: Record<BucketKey, ValidationGroupSummary[]> = {
+      passed: [],
+      issues: [],
+      failed: [],
+    };
+    for (const g of groups) {
+      b[getBucket(g.status)].push(g);
+    }
+    return b;
+  }, [groups]);
 
   const fetchGroups = async () => {
     setLoading(true);
@@ -46,7 +266,9 @@ export function ValidationGroupsPage() {
       const msg =
         (err as { response?: { data?: { detail?: string } } }).response?.data
           ?.detail ??
-        (err instanceof Error ? err.message : "Failed to load validation groups");
+        (err instanceof Error
+          ? err.message
+          : "Failed to load validation groups");
       setError(msg);
     } finally {
       setLoading(false);
@@ -62,15 +284,47 @@ export function ValidationGroupsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Validation Groups</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Validation Groups
+          </h1>
           <p className="text-muted-foreground text-sm mt-0.5">
             Review grouped invoices and purchase orders for manual comparison.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchGroups}>
-          <RefreshCw className="h-4 w-4 mr-1" />
-          Refresh
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* View toggle */}
+          <div className="flex items-center rounded-lg border bg-muted/50 p-0.5">
+            <button
+              onClick={() => handleSetViewMode("table")}
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                viewMode === "table"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              aria-label="Table view"
+            >
+              <LayoutList className="h-3.5 w-3.5" />
+              Table
+            </button>
+            <button
+              onClick={() => handleSetViewMode("card")}
+              className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
+                viewMode === "card"
+                  ? "bg-background text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              }`}
+              aria-label="Card view"
+            >
+              <LayoutGrid className="h-3.5 w-3.5" />
+              Cards
+            </button>
+          </div>
+
+          <Button variant="outline" size="sm" onClick={fetchGroups}>
+            <RefreshCw className="h-4 w-4 mr-1" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Error */}
@@ -81,7 +335,7 @@ export function ValidationGroupsPage() {
         </div>
       )}
 
-      {/* Table */}
+      {/* Content */}
       {loading ? (
         <div className="flex justify-center py-16">
           <LoadingSpinner size={32} />
@@ -90,14 +344,19 @@ export function ValidationGroupsPage() {
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-16">
             <ShieldCheck className="h-12 w-12 text-muted-foreground/40 mb-3" />
-            <p className="text-muted-foreground">No validation groups found.</p>
+            <p className="text-muted-foreground">
+              No validation groups found.
+            </p>
           </CardContent>
         </Card>
-      ) : (
+      ) : viewMode === "table" ? (
+        /* ──────────── TABLE VIEW ──────────── */
         <Card className="border shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">
-              {groups.length} group{groups.length > 1 ? "s" : ""}
+              Showing {tablePagination.startIndex + 1}–
+              {tablePagination.endIndex} of {tablePagination.totalItems} group
+              {tablePagination.totalItems > 1 ? "s" : ""}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -126,7 +385,7 @@ export function ValidationGroupsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {groups.map((g) => (
+                  {tablePagination.paginatedItems.map((g) => (
                     <tr
                       key={g.id}
                       className="border-b last:border-0 hover:bg-muted/30 transition-colors"
@@ -137,7 +396,9 @@ export function ValidationGroupsPage() {
                           {g.status}
                         </Badge>
                       </td>
-                      <td className="px-4 py-3 text-center">{g.invoice_count}</td>
+                      <td className="px-4 py-3 text-center">
+                        {g.invoice_count}
+                      </td>
                       <td className="px-4 py-3 text-center">{g.po_count}</td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {g.created_at
@@ -159,8 +420,39 @@ export function ValidationGroupsPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={tablePagination.currentPage}
+              totalPages={tablePagination.totalPages}
+              totalItems={tablePagination.totalItems}
+              startIndex={tablePagination.startIndex}
+              endIndex={tablePagination.endIndex}
+              hasNextPage={tablePagination.hasNextPage}
+              hasPrevPage={tablePagination.hasPrevPage}
+              onNextPage={tablePagination.nextPage}
+              onPrevPage={tablePagination.prevPage}
+              onGoToPage={tablePagination.goToPage}
+            />
           </CardContent>
         </Card>
+      ) : (
+        /* ──────────── CARD VIEW — 3-column layout ──────────── */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <BucketColumn
+            bucket="failed"
+            items={buckets.failed}
+            navigate={navigate}
+          />
+          <BucketColumn
+            bucket="issues"
+            items={buckets.issues}
+            navigate={navigate}
+          />
+          <BucketColumn
+            bucket="passed"
+            items={buckets.passed}
+            navigate={navigate}
+          />
+        </div>
       )}
     </div>
   );

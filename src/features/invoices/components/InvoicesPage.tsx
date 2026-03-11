@@ -11,6 +11,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
+import { Pagination } from "@/components/common/Pagination";
+import { usePagination } from "@/hooks/usePagination";
 import { FileText, RefreshCw, AlertCircle } from "lucide-react";
 
 function statusVariant(
@@ -35,6 +37,20 @@ export function InvoicesPage() {
   const [invoices, setInvoices] = useState<InvoiceOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  const {
+    currentPage,
+    totalPages,
+    paginatedItems,
+    totalItems,
+    startIndex,
+    endIndex,
+    hasNextPage,
+    hasPrevPage,
+    nextPage,
+    prevPage,
+    goToPage,
+  } = usePagination(invoices, 10);
 
   const fetchInvoices = async () => {
     setLoading(true);
@@ -94,7 +110,8 @@ export function InvoicesPage() {
         <Card className="border shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm text-muted-foreground">
-              {invoices.length} invoice{invoices.length > 1 ? "s" : ""}
+              Showing {startIndex + 1}–{endIndex} of {totalItems} invoice
+              {totalItems > 1 ? "s" : ""}
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
@@ -123,7 +140,7 @@ export function InvoicesPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {invoices.map((inv) => (
+                  {paginatedItems.map((inv) => (
                     <tr
                       key={inv.id}
                       className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
@@ -161,6 +178,18 @@ export function InvoicesPage() {
                 </tbody>
               </table>
             </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={totalItems}
+              startIndex={startIndex}
+              endIndex={endIndex}
+              hasNextPage={hasNextPage}
+              hasPrevPage={hasPrevPage}
+              onNextPage={nextPage}
+              onPrevPage={prevPage}
+              onGoToPage={goToPage}
+            />
           </CardContent>
         </Card>
       )}
