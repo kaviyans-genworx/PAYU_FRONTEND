@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "@/hooks/useAppStore";
 import { resetUpload } from "@/features/upload";
@@ -9,6 +9,7 @@ import {
 } from "../slices/reviewSlice";
 import { reviewService } from "../services/reviewService";
 import type { ExtractionResult } from "@/features/upload/services/extractionService";
+import type { VendorSearchResult, POSearchResult } from "@/types/documents";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,6 +32,7 @@ import {
   AlertCircle,
   CheckCircle2,
   Eye,
+  Search,
 } from "lucide-react";
 
 interface LineItemForm {
@@ -96,6 +98,111 @@ function DocumentReviewForm({
 
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // ── Vendor search state ──
+  const [vendorQuery, setVendorQuery] = useState(String(extractedData.vendor_name ?? ""));
+  const [vendorResults, setVendorResults] = useState<VendorSearchResult[]>([]);
+  const [selectedVendor, setSelectedVendor] = useState<VendorSearchResult | null>(null);
+  const [showVendorDropdown, setShowVendorDropdown] = useState(false);
+  const vendorRef = useRef<HTMLDivElement>(null);
+
+  // ── PO search state ──
+  const [poQuery, setPoQuery] = useState(String(extractedData.reference_po_number ?? ""));
+  const [poResults, setPoResults] = useState<POSearchResult[]>([]);
+  const [selectedPO, setSelectedPO] = useState<POSearchResult | null>(null);
+  const [showPODropdown, setShowPODropdown] = useState(false);
+  const poRef = useRef<HTMLDivElement>(null);
+
+  // Debounced vendor search
+  const vendorTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleVendorSearch = useCallback((query: string) => {
+    setVendorQuery(query);
+    setSelectedVendor(null);
+    if (vendorTimerRef.current) clearTimeout(vendorTimerRef.current);
+    if (query.trim().length < 1) {
+      setVendorResults([]);
+      setShowVendorDropdown(false);
+      return;
+    }
+    vendorTimerRef.current = setTimeout(async () => {
+      const results = await reviewService.searchVendors(query.trim());
+      setVendorResults(results);
+      setShowVendorDropdown(results.length > 0);
+    }, 300);
+  }, []);
+
+  // Debounced PO search
+  const poTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handlePOSearch = useCallback((query: string) => {
+    setPoQuery(query);
+    setSelectedPO(null);
+    if (poTimerRef.current) clearTimeout(poTimerRef.current);
+    if (query.trim().length < 1) {
+      setPoResults([]);
+      setShowPODropdown(false);
+      return;
+    }
+    poTimerRef.current = setTimeout(async () => {
+      const results = await reviewService.searchPurchaseOrders(query.trim());
+      setPoResults(results);
+      setShowPODropdown(results.length > 0);
+    }, 300);
+  }, []);
+
+  // Select a vendor
+  const selectVendor = (v: VendorSearchResult) => {
+    setSelectedVendor(v);
+    setVendorQuery(v.vendor_name ?? "");
+    setShowVendorDropdown(false);
+    setForm((prev) => ({
+      ...prev,
+      vendor_name: v.vendor_name ?? "",
+      vendor_email: v.vendor_email ?? "",
+      vendor_phone: v.vendor_phone ?? "",
+      vendor_address: v.vendor_address ?? "",
+      vendor_tax_id: v.gst_number ?? "",
+    }));
+  };
+
+  // Select a PO — also auto-fill vendor from PO
+  const selectPO = (po: POSearchResult) => {
+    setSelectedPO(po);
+    setPoQuery(po.po_number);
+    setShowPODropdown(false);
+    setForm((prev) => ({ ...prev, reference_po_number: po.po_number }));
+    if (po.vendor) {
+      selectVendor(po.vendor);
+    }
+  };
+
+  // Auto-search vendor on mount if extracted vendor_name exists
+  useEffect(() => {
+    if (isInvoice && extractedData.vendor_name) {
+      reviewService.searchVendors(String(extractedData.vendor_name)).then((results) => {
+        if (results.length === 1) {
+          selectVendor(results[0]);
+        } else if (results.length > 1) {
+          const exact = results.find(
+            (v) => v.vendor_name?.toLowerCase() === String(extractedData.vendor_name).toLowerCase()
+          );
+          if (exact) selectVendor(exact);
+        }
+      }).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Close dropdowns on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (vendorRef.current && !vendorRef.current.contains(e.target as Node))
+        setShowVendorDropdown(false);
+      if (poRef.current && !poRef.current.contains(e.target as Node))
+        setShowPODropdown(false);
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
 
   const updateField = (field: string, value: string) =>
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -333,24 +440,51 @@ function DocumentReviewForm({
                       }
                     />
                   </div>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5" ref={poRef}>
                     <Label htmlFor="reference_po_number">
                       Reference PO Number{" "}
                       <span className="text-destructive">*</span>
                     </Label>
-                    <Input
-                      id="reference_po_number"
-                      value={form.reference_po_number}
-                      onChange={(e) =>
-                        updateField("reference_po_number", e.target.value)
-                      }
-                      placeholder="Required — links invoice to PO"
-                      className={
-                        !form.reference_po_number.trim()
-                          ? "border-amber-400"
-                          : ""
-                      }
-                    />
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="reference_po_number"
+                        value={poQuery}
+                        onChange={(e) => handlePOSearch(e.target.value)}
+                        onFocus={() => {
+                          if (poResults.length > 0) setShowPODropdown(true);
+                        }}
+                        placeholder="Search PO number…"
+                        className={`pl-8 ${
+                          !form.reference_po_number.trim()
+                            ? "border-amber-400"
+                            : ""
+                        }`}
+                      />
+                      {showPODropdown && poResults.length > 0 && (
+                        <div className="absolute z-50 mt-1 w-full bg-background border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {poResults.map((po) => (
+                            <button
+                              key={po.id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex justify-between items-center"
+                              onClick={() => selectPO(po)}
+                            >
+                              <span className="font-medium">{po.po_number}</span>
+                              <span className="text-xs text-muted-foreground">
+                                {po.vendor?.vendor_name ?? ""}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {selectedPO && (
+                      <p className="text-xs text-emerald-600 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Linked to PO: {selectedPO.po_number}
+                      </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
@@ -423,59 +557,146 @@ function DocumentReviewForm({
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="space-y-1.5">
-                <Label htmlFor="vendor_name">Vendor Name</Label>
-                <Input
-                  id="vendor_name"
-                  value={form.vendor_name}
-                  onChange={(e) =>
-                    updateField("vendor_name", e.target.value)
-                  }
-                />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <Label htmlFor="vendor_email">Email</Label>
-                  <Input
-                    id="vendor_email"
-                    type="email"
-                    value={form.vendor_email}
-                    onChange={(e) =>
-                      updateField("vendor_email", e.target.value)
-                    }
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label htmlFor="vendor_phone">Phone</Label>
-                  <Input
-                    id="vendor_phone"
-                    value={form.vendor_phone}
-                    onChange={(e) =>
-                      updateField("vendor_phone", e.target.value)
-                    }
-                  />
-                </div>
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="vendor_address">Address</Label>
-                <Input
-                  id="vendor_address"
-                  value={form.vendor_address}
-                  onChange={(e) =>
-                    updateField("vendor_address", e.target.value)
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label htmlFor="vendor_tax_id">Tax / GST ID</Label>
-                <Input
-                  id="vendor_tax_id"
-                  value={form.vendor_tax_id}
-                  onChange={(e) =>
-                    updateField("vendor_tax_id", e.target.value)
-                  }
-                />
-              </div>
+              {isInvoice ? (
+                <>
+                  <div className="space-y-1.5" ref={vendorRef}>
+                    <Label htmlFor="vendor_name">Vendor Name</Label>
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="vendor_name"
+                        value={vendorQuery}
+                        onChange={(e) => handleVendorSearch(e.target.value)}
+                        onFocus={() => {
+                          if (vendorResults.length > 0) setShowVendorDropdown(true);
+                        }}
+                        placeholder="Search vendor…"
+                        className="pl-8"
+                      />
+                      {showVendorDropdown && vendorResults.length > 0 && (
+                        <div className="absolute z-50 mt-1 w-full bg-background border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                          {vendorResults.map((v) => (
+                            <button
+                              key={v.id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50"
+                              onClick={() => selectVendor(v)}
+                            >
+                              <span className="font-medium">{v.vendor_name}</span>
+                              {v.vendor_email && (
+                                <span className="ml-2 text-xs text-muted-foreground">
+                                  {v.vendor_email}
+                                </span>
+                              )}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {selectedVendor && (
+                      <p className="text-xs text-emerald-600 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Selected: {selectedVendor.vendor_name}
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="vendor_email">Email</Label>
+                      <Input
+                        id="vendor_email"
+                        type="email"
+                        value={form.vendor_email}
+                        readOnly
+                        className="bg-muted/30"
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="vendor_phone">Phone</Label>
+                      <Input
+                        id="vendor_phone"
+                        value={form.vendor_phone}
+                        readOnly
+                        className="bg-muted/30"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vendor_address">Address</Label>
+                    <Input
+                      id="vendor_address"
+                      value={form.vendor_address}
+                      readOnly
+                      className="bg-muted/30"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vendor_tax_id">Tax / GST ID</Label>
+                    <Input
+                      id="vendor_tax_id"
+                      value={form.vendor_tax_id}
+                      readOnly
+                      className="bg-muted/30"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vendor_name">Vendor Name</Label>
+                    <Input
+                      id="vendor_name"
+                      value={form.vendor_name}
+                      onChange={(e) =>
+                        updateField("vendor_name", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="vendor_email">Email</Label>
+                      <Input
+                        id="vendor_email"
+                        type="email"
+                        value={form.vendor_email}
+                        onChange={(e) =>
+                          updateField("vendor_email", e.target.value)
+                        }
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="vendor_phone">Phone</Label>
+                      <Input
+                        id="vendor_phone"
+                        value={form.vendor_phone}
+                        onChange={(e) =>
+                          updateField("vendor_phone", e.target.value)
+                        }
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vendor_address">Address</Label>
+                    <Input
+                      id="vendor_address"
+                      value={form.vendor_address}
+                      onChange={(e) =>
+                        updateField("vendor_address", e.target.value)
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="vendor_tax_id">Tax / GST ID</Label>
+                    <Input
+                      id="vendor_tax_id"
+                      value={form.vendor_tax_id}
+                      onChange={(e) =>
+                        updateField("vendor_tax_id", e.target.value)
+                      }
+                    />
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
 

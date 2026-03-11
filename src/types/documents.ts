@@ -47,7 +47,7 @@ export interface InvoiceItemOut {
 export interface InvoiceOut {
   id: number;
   invoice_number?: string;
-  vendor_id: number;
+  vendor_id?: number;
   currency?: string;
   due_date?: string;
   subtotal?: number;
@@ -125,4 +125,24 @@ export interface SubmitInvoiceReviewPayload {
   discount_amount?: number;
   total_amount?: number;
   line_items: LineItem[];
+}
+
+// ── Search result shapes ─────────────────────────────────────
+
+export interface VendorSearchResult {
+  id: number;
+  vendor_name: string | null;
+  vendor_email: string | null;
+  vendor_phone: string | null;
+  vendor_address: string | null;
+  gst_number: string | null;
+}
+
+export interface POSearchResult {
+  id: number;
+  po_number: string;
+  vendor_id: number;
+  status: string;
+  total_amount: number | null;
+  vendor: VendorSearchResult | null;
 }
