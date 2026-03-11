@@ -5,6 +5,7 @@ import { extractDocument, resetUpload } from "../slices/uploadSlice";
 import { addReviewItem } from "@/features/review/slices/reviewSlice";
 import { extractionService } from "../services/extractionService";
 import { Button } from "@/components/ui/button";
+import { AlertTriangle } from "lucide-react";
 import {
   Card,
   CardContent,
