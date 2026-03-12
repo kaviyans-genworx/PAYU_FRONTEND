@@ -13,32 +13,33 @@ import {
 } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { DocumentViewer } from "@/components/common/DocumentViewer";
+import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
   AlertCircle,
 } from "lucide-react";
+import { InfoRow } from "@/components/common/InfoRow";
+import { formatCurrency } from "@/utils/formatCurrency";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
-function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="flex justify-between py-1.5 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="font-medium text-right max-w-[60%] truncate">
-        {value ?? "—"}
-      </span>
-    </div>
-  );
-}
-
-function formatCurrency(value: number | null | undefined): string {
-  if (value == null) return "—";
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+function statusVariant(
+  status: string,
+): "success" | "warning" | "destructive" | "secondary" {
+  switch (status.toUpperCase()) {
+    case "EXTRACTED":
+    case "MATCHED":
+      return "success";
+    case "REVIEW_REQUIRED":
+    case "PENDING":
+      return "warning";
+    case "REJECTED":
+      return "destructive";
+    default:
+      return "secondary";
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -52,6 +53,7 @@ export function PODetailPage() {
   const [po, setPO] = useState<PurchaseOrderOut | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -85,7 +87,9 @@ export function PODetailPage() {
               file_url: record.file_url,
             }),
           );
-          navigate("/review", { replace: true });
+          setRedirecting(true);
+          setLoading(false);
+          setTimeout(() => navigate("/review", { replace: true }), 2000);
           return;
         }
         setPO(record);
@@ -101,6 +105,25 @@ export function PODetailPage() {
       })
       .finally(() => setLoading(false));
   }, [id, dispatch, navigate]);
+
+  if (redirecting) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 gap-4">
+        <div className="flex items-center gap-3 rounded-lg border border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 px-6 py-4">
+          <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
+          <div>
+            <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
+              This purchase order is pending review
+            </p>
+            <p className="text-xs text-amber-700 dark:text-amber-500 mt-0.5">
+              Redirecting to the review page…
+            </p>
+          </div>
+        </div>
+        <LoadingSpinner size={24} />
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -148,12 +171,13 @@ export function PODetailPage() {
             PO {po.po_number || `#${po.id}`}
           </h1>
         </div>
+        <Badge variant={statusVariant(po.status)}>{po.status}</Badge>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
         {/* Left: Document preview */}
         <div className="lg:w-3/5 min-w-0">
-          <div className="lg:sticky lg:top-4 h-[calc(100vh-120px)] border rounded-xl shadow-sm overflow-hidden bg-background">
+          <div className="lg:sticky lg:top-4 h-[calc(100vh-10rem)] min-h-[400px] border rounded-xl shadow-sm overflow-hidden bg-background">
             <DocumentViewer
               fileUrl={po.file_url ?? null}
               title={`PO ${po.po_number || "Document"}`}

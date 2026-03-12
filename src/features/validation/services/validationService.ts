@@ -5,6 +5,7 @@ import type {
   ValidationGroupSummary,
   ValidationGroupDetail,
   ValidationResultsOut,
+  MappedItemsOut,
 } from "@/types/documents";
 
 function authHeaders() {
@@ -32,6 +33,14 @@ export const validationService = {
   async getGroupResults(groupId: number): Promise<ValidationResultsOut> {
     const { data } = await axios.get<ValidationResultsOut>(
       `${CORE_API_BASE_URL}/api/validations/groups/${groupId}/results`,
+      { headers: authHeaders() },
+    );
+    return data;
+  },
+
+  async getMappedItems(groupId: number): Promise<MappedItemsOut> {
+    const { data } = await axios.get<MappedItemsOut>(
+      `${CORE_API_BASE_URL}/api/validations/groups/${groupId}/mapped-items`,
       { headers: authHeaders() },
     );
     return data;

@@ -1,9 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { invoiceService } from "../services/invoiceService";
 import type { InvoiceOut } from "@/types/documents";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -13,7 +14,7 @@ import {
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Pagination } from "@/components/common/Pagination";
 import { usePagination } from "@/hooks/usePagination";
-import { FileText, RefreshCw, AlertCircle } from "lucide-react";
+import { FileText, RefreshCw, AlertCircle, Search, Upload } from "lucide-react";
 
 function statusVariant(
   status: string,
@@ -32,11 +33,69 @@ function statusVariant(
   }
 }
 
+type SortField = "date" | "amount" | "vendor";
+type SortDir = "asc" | "desc";
+
 export function InvoicesPage() {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState<InvoiceOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Search, filter, sort state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortField, setSortField] = useState<SortField>("date");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  // Derive unique statuses for filter dropdown
+  const uniqueStatuses = useMemo(
+    () => Array.from(new Set(invoices.map((i) => i.status))).sort(),
+    [invoices],
+  );
+
+  // Filtered & sorted invoices
+  const filteredInvoices = useMemo(() => {
+    let list = invoices;
+
+    // Search by invoice number
+    if (searchQuery.trim()) {
+      const q = searchQuery.trim().toLowerCase();
+      list = list.filter(
+        (inv) =>
+          (inv.invoice_number ?? "").toLowerCase().includes(q) ||
+          String(inv.vendor_id ?? "").toLowerCase().includes(q),
+      );
+    }
+
+    // Filter by status
+    if (statusFilter !== "all") {
+      list = list.filter((inv) => inv.status === statusFilter);
+    }
+
+    // Sort
+    const sorted = [...list].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case "date":
+          cmp =
+            new Date(a.created_at ?? 0).getTime() -
+            new Date(b.created_at ?? 0).getTime();
+          break;
+        case "amount":
+          cmp = (a.total_amount ?? 0) - (b.total_amount ?? 0);
+          break;
+        case "vendor":
+          cmp = String(a.vendor_id ?? "").localeCompare(
+            String(b.vendor_id ?? ""),
+          );
+          break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    return sorted;
+  }, [invoices, searchQuery, statusFilter, sortField, sortDir]);
 
   const {
     currentPage,
@@ -50,7 +109,7 @@ export function InvoicesPage() {
     nextPage,
     prevPage,
     goToPage,
-  } = usePagination(invoices, 10);
+  } = usePagination(filteredInvoices, 10);
 
   const fetchInvoices = async () => {
     setLoading(true);
@@ -88,6 +147,49 @@ export function InvoicesPage() {
         </Button>
       </div>
 
+      {/* Search, Filter, Sort controls */}
+      <div className="flex flex-col sm:flex-row gap-3">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by invoice number…"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <select
+          value={statusFilter}
+          onChange={(e) => setStatusFilter(e.target.value)}
+          className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+          aria-label="Filter by status"
+        >
+          <option value="all">All Statuses</option>
+          {uniqueStatuses.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <select
+          value={`${sortField}-${sortDir}`}
+          onChange={(e) => {
+            const [f, d] = e.target.value.split("-") as [SortField, SortDir];
+            setSortField(f);
+            setSortDir(d);
+          }}
+          className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+          aria-label="Sort by"
+        >
+          <option value="date-desc">Date (Newest)</option>
+          <option value="date-asc">Date (Oldest)</option>
+          <option value="amount-desc">Amount (High-Low)</option>
+          <option value="amount-asc">Amount (Low-High)</option>
+          <option value="vendor-asc">Vendor (A-Z)</option>
+          <option value="vendor-desc">Vendor (Z-A)</option>
+        </select>
+      </div>
+
       {error && (
         <div className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/5 px-4 py-3">
           <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
@@ -101,9 +203,16 @@ export function InvoicesPage() {
         </div>
       ) : invoices.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <FileText className="h-12 w-12 text-muted-foreground/40 mb-3" />
-            <p className="text-muted-foreground">No invoices found.</p>
+          <CardContent className="flex flex-col items-center justify-center py-16 gap-3">
+            <FileText className="h-12 w-12 text-muted-foreground/40" />
+            <p className="text-lg font-medium">No invoices yet</p>
+            <p className="text-sm text-muted-foreground text-center max-w-sm">
+              Upload an invoice document to get started with extraction and processing.
+            </p>
+            <Button className="mt-2 gap-2" onClick={() => navigate("/upload")}>
+              <Upload className="h-4 w-4" />
+              Upload Invoice
+            </Button>
           </CardContent>
         </Card>
       ) : (
@@ -121,6 +230,9 @@ export function InvoicesPage() {
                   <tr className="border-y bg-muted/50">
                     <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
                       Invoice #
+                    </th>
+                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
+                      Vendor
                     </th>
                     <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
                       Status
@@ -143,11 +255,22 @@ export function InvoicesPage() {
                   {paginatedItems.map((inv) => (
                     <tr
                       key={inv.id}
+                      role="button"
+                      tabIndex={0}
                       className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
                       onClick={() => navigate(`/invoices/${inv.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          navigate(`/invoices/${inv.id}`);
+                        }
+                      }}
                     >
                       <td className="px-4 py-2.5 font-medium">
                         {inv.invoice_number || "—"}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        {inv.vendor_id != null ? `Vendor #${inv.vendor_id}` : "—"}
                       </td>
                       <td className="px-4 py-2.5">
                         <Badge variant={statusVariant(inv.status)}>
