@@ -28,6 +28,7 @@ import {
   Send,
   Plus,
   Trash2,
+  X,
   FileText,
   FileSpreadsheet,
   AlertCircle,
@@ -65,7 +66,15 @@ function DocumentReviewForm({
   const [form, setForm] = useState(() => ({
     invoice_number: String(extractedData.invoice_number ?? ""),
     po_number: String(extractedData.po_number ?? ""),
-    reference_po_number: String(extractedData.reference_po_number ?? ""),
+    po_references: (() => {
+      if (Array.isArray(extractedData.po_references)) {
+        return extractedData.po_references.map(String);
+      }
+      if (extractedData.reference_po_number) {
+        return [String(extractedData.reference_po_number)];
+      }
+      return [] as string[];
+    })(),
     vendor_name: String(extractedData.vendor_name ?? ""),
     vendor_email: String(extractedData.vendor_email ?? ""),
     vendor_phone: String(extractedData.vendor_phone ?? ""),
@@ -106,10 +115,10 @@ function DocumentReviewForm({
   const [showVendorDropdown, setShowVendorDropdown] = useState(false);
   const vendorRef = useRef<HTMLDivElement>(null);
 
-  // ── PO search state ──
-  const [poQuery, setPoQuery] = useState(String(extractedData.reference_po_number ?? ""));
+  // ── PO search state (multi-select) ──
+  const [poQuery, setPoQuery] = useState("");
   const [poResults, setPoResults] = useState<POSearchResult[]>([]);
-  const [selectedPO, setSelectedPO] = useState<POSearchResult | null>(null);
+  const [selectedPOs, setSelectedPOs] = useState<POSearchResult[]>([]);
   const [showPODropdown, setShowPODropdown] = useState(false);
   const poRef = useRef<HTMLDivElement>(null);
 
@@ -135,7 +144,6 @@ function DocumentReviewForm({
   const poTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handlePOSearch = useCallback((query: string) => {
     setPoQuery(query);
-    setSelectedPO(null);
     if (poTimerRef.current) clearTimeout(poTimerRef.current);
     if (query.trim().length < 1) {
       setPoResults([]);
@@ -164,15 +172,29 @@ function DocumentReviewForm({
     }));
   };
 
-  // Select a PO — also auto-fill vendor from PO
-  const selectPO = (po: POSearchResult) => {
-    setSelectedPO(po);
-    setPoQuery(po.po_number);
+  // Add a PO to the list — also auto-fill vendor from first PO
+  const addPO = (po: POSearchResult) => {
+    if (form.po_references.includes(po.po_number)) return;
+    setSelectedPOs((prev) => [...prev, po]);
+    setForm((prev) => ({
+      ...prev,
+      po_references: [...prev.po_references, po.po_number],
+    }));
+    setPoQuery("");
     setShowPODropdown(false);
-    setForm((prev) => ({ ...prev, reference_po_number: po.po_number }));
-    if (po.vendor) {
+    // Auto-fill vendor from first PO
+    if (form.po_references.length === 0 && po.vendor) {
       selectVendor(po.vendor);
     }
+  };
+
+  // Remove a PO from the list
+  const removePO = (poNumber: string) => {
+    setSelectedPOs((prev) => prev.filter((p) => p.po_number !== poNumber));
+    setForm((prev) => ({
+      ...prev,
+      po_references: prev.po_references.filter((ref) => ref !== poNumber),
+    }));
   };
 
   // Auto-search vendor on mount if extracted vendor_name exists
@@ -188,6 +210,33 @@ function DocumentReviewForm({
           if (exact) selectVendor(exact);
         }
       }).catch(() => {});
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Auto-resolve extracted PO references on mount
+  useEffect(() => {
+    if (isInvoice && form.po_references.length > 0) {
+      Promise.all(
+        form.po_references.map(async (ref) => {
+          try {
+            const results = await reviewService.searchPurchaseOrders(ref);
+            return results.find(
+              (r) => r.po_number.toLowerCase() === ref.toLowerCase()
+            ) || null;
+          } catch {
+            return null;
+          }
+        })
+      ).then((resolved) => {
+        const found = resolved.filter(
+          (r): r is POSearchResult => r !== null
+        );
+        if (found.length > 0) {
+          setSelectedPOs(found);
+          if (found[0].vendor) selectVendor(found[0].vendor);
+        }
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -247,14 +296,19 @@ function DocumentReviewForm({
       }));
 
       if (isInvoice) {
-        if (!form.reference_po_number.trim()) {
-          setSubmitError("Reference PO Number is required for invoices.");
+        if (form.po_references.length === 0) {
+          setSubmitError("At least one PO reference is required for invoices.");
           setSubmitting(false);
           return;
         }
+        // Store PO references in localStorage for pipeline consistency
+        localStorage.setItem(
+          "invoice_po_references",
+          JSON.stringify(form.po_references)
+        );
         await reviewService.submitInvoiceReview(storedRecord.id, {
           invoice_number: form.invoice_number || undefined,
-          reference_po_number: form.reference_po_number,
+          po_references: form.po_references,
           vendor_name: form.vendor_name || undefined,
           vendor_email: form.vendor_email || undefined,
           vendor_phone: form.vendor_phone || undefined,
@@ -312,7 +366,7 @@ function DocumentReviewForm({
 
   return (
     <div className="space-y-4">
-      {score && (
+      {score ? (
         <div className="flex items-center gap-2 justify-end">
           <span
             className={`text-lg font-bold ${
@@ -324,6 +378,11 @@ function DocumentReviewForm({
           <Badge variant={score.requires_review ? "warning" : "success"}>
             {score.requires_review ? "Review Required" : "Good Quality"}
           </Badge>
+        </div>
+      ) : (
+        <div className="flex items-center gap-2 justify-end animate-pulse">
+          <div className="h-6 w-12 rounded bg-muted" />
+          <div className="h-5 w-24 rounded-full bg-muted" />
         </div>
       )}
 
@@ -344,7 +403,7 @@ function DocumentReviewForm({
       <div className="flex flex-col lg:flex-row gap-6">
         {/* LEFT: Document Preview */}
         <div className="lg:w-3/5 min-w-0">
-          <div className="lg:sticky lg:top-4 h-[calc(100vh-120px)] border rounded-xl shadow-sm overflow-hidden bg-background">
+          <div className="lg:sticky lg:top-4 h-[calc(100vh-10rem)] min-h-[400px] border rounded-xl shadow-sm overflow-hidden bg-background">
              <DocumentViewer
                 fileUrl={fileUrl ?? null}
                 title="Document Preview"
@@ -379,48 +438,87 @@ function DocumentReviewForm({
                     />
                   </div>
                   <div className="space-y-1.5" ref={poRef}>
-                    <Label htmlFor="reference_po_number">
-                      Reference PO Number{" "}
+                    <Label htmlFor="po_references">
+                      PO References{" "}
                       <span className="text-destructive">*</span>
                     </Label>
+                    {/* Selected POs as tags */}
+                    {form.po_references.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5 mb-2">
+                        {form.po_references.map((ref) => (
+                          <Badge
+                            key={ref}
+                            variant="secondary"
+                            className="gap-1 pr-1"
+                          >
+                            {ref}
+                            <button
+                              type="button"
+                              onClick={() => removePO(ref)}
+                              className="ml-1 hover:text-destructive"
+                            >
+                              <X className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
                     <div className="relative">
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
-                        id="reference_po_number"
+                        id="po_references"
+                        role="combobox"
+                        aria-expanded={showPODropdown}
+                        aria-haspopup="listbox"
+                        aria-autocomplete="list"
+                        aria-controls="po-search-listbox"
                         value={poQuery}
                         onChange={(e) => handlePOSearch(e.target.value)}
                         onFocus={() => {
                           if (poResults.length > 0) setShowPODropdown(true);
                         }}
-                        placeholder="Search PO number…"
+                        placeholder="Search PO number to add…"
                         className={`pl-8 ${
-                          !form.reference_po_number.trim()
+                          form.po_references.length === 0
                             ? "border-amber-400"
                             : ""
                         }`}
                       />
                       {showPODropdown && poResults.length > 0 && (
-                        <div className="absolute z-50 mt-1 w-full bg-background border rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                          {poResults.map((po) => (
-                            <button
-                              key={po.id}
-                              type="button"
-                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex justify-between items-center"
-                              onClick={() => selectPO(po)}
-                            >
-                              <span className="font-medium">{po.po_number}</span>
-                              <span className="text-xs text-muted-foreground">
-                                {po.vendor?.vendor_name ?? ""}
-                              </span>
-                            </button>
-                          ))}
+                        <div
+                          id="po-search-listbox"
+                          role="listbox"
+                          className="absolute z-50 mt-1 w-full bg-background border rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                        >
+                          {poResults
+                            .filter(
+                              (po) =>
+                                !form.po_references.includes(po.po_number)
+                            )
+                            .map((po) => (
+                              <button
+                                key={po.id}
+                                type="button"
+                                role="option"
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 flex justify-between items-center"
+                                onClick={() => addPO(po)}
+                              >
+                                <span className="font-medium">
+                                  {po.po_number}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                  {po.vendor?.vendor_name ?? ""}
+                                </span>
+                              </button>
+                            ))}
                         </div>
                       )}
                     </div>
-                    {selectedPO && (
+                    {selectedPOs.length > 0 && (
                       <p className="text-xs text-emerald-600 flex items-center gap-1">
                         <CheckCircle2 className="h-3 w-3" />
-                        Linked to PO: {selectedPO.po_number}
+                        {selectedPOs.length} PO{selectedPOs.length > 1 ? "s" : ""}{" "}
+                        linked
                       </p>
                     )}
                   </div>
@@ -503,6 +601,11 @@ function DocumentReviewForm({
                       <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="vendor_name"
+                        role="combobox"
+                        aria-expanded={showVendorDropdown}
+                        aria-haspopup="listbox"
+                        aria-autocomplete="list"
+                        aria-controls="vendor-search-listbox"
                         value={vendorQuery}
                         onChange={(e) => handleVendorSearch(e.target.value)}
                         onFocus={() => {
@@ -512,11 +615,16 @@ function DocumentReviewForm({
                         className="pl-8"
                       />
                       {showVendorDropdown && vendorResults.length > 0 && (
-                        <div className="absolute z-50 mt-1 w-full bg-background border rounded-lg shadow-lg max-h-48 overflow-y-auto">
+                        <div
+                          id="vendor-search-listbox"
+                          role="listbox"
+                          className="absolute z-50 mt-1 w-full bg-background border rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                        >
                           {vendorResults.map((v) => (
                             <button
                               key={v.id}
                               type="button"
+                              role="option"
                               className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50"
                               onClick={() => selectVendor(v)}
                             >
@@ -547,6 +655,7 @@ function DocumentReviewForm({
                         value={form.vendor_email}
                         readOnly
                         className="bg-muted/30"
+                        aria-describedby="vendor-readonly-hint"
                       />
                     </div>
                     <div className="space-y-1.5">
@@ -556,6 +665,7 @@ function DocumentReviewForm({
                         value={form.vendor_phone}
                         readOnly
                         className="bg-muted/30"
+                        aria-describedby="vendor-readonly-hint"
                       />
                     </div>
                   </div>
@@ -566,6 +676,7 @@ function DocumentReviewForm({
                       value={form.vendor_address}
                       readOnly
                       className="bg-muted/30"
+                      aria-describedby="vendor-readonly-hint"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -575,8 +686,12 @@ function DocumentReviewForm({
                       value={form.vendor_tax_id}
                       readOnly
                       className="bg-muted/30"
+                      aria-describedby="vendor-readonly-hint"
                     />
                   </div>
+                  <p id="vendor-readonly-hint" className="text-xs text-muted-foreground italic">
+                    These fields are auto-filled from the selected vendor and cannot be edited directly.
+                  </p>
                 </>
               ) : (
                 <>
@@ -953,7 +1068,7 @@ export function ReviewPage() {
     dispatch(resetUpload());
 
     if (items.length <= 1) {
-      navigate("/dashboard");
+      navigate("/upload");
     }
   };
 
@@ -1008,13 +1123,19 @@ export function ReviewPage() {
       </div>
 
       {items.length > 1 && (
-        <div className="flex gap-1 overflow-x-auto border-b pb-px">
+        <div className="flex gap-1 overflow-x-auto border-b pb-px" role="tablist" aria-label="Documents pending review">
           {items.map((item, idx) => {
             const isActive = idx === activeIdx;
             const isInv = item.document_type === "invoice";
+            const tabId = `review-tab-${item.document_type}-${item.stored_record?.id}`;
+            const panelId = `review-panel-${item.document_type}-${item.stored_record?.id}`;
             return (
               <button
-                key={`${item.document_type}-${item.stored_record?.id}`}
+                key={tabId}
+                id={tabId}
+                role="tab"
+                aria-selected={isActive}
+                aria-controls={panelId}
                 onClick={() => setActiveIdx(idx)}
                 className={`flex items-center gap-2 px-4 py-2 text-sm font-medium whitespace-nowrap rounded-t-lg border border-b-0 transition-colors ${
                   isActive
@@ -1034,11 +1155,17 @@ export function ReviewPage() {
         </div>
       )}
 
-      <DocumentReviewForm
-        key={`${activeItem.document_type}-${activeItem.stored_record?.id}`}
-        item={activeItem}
-        onSubmitted={() => handleSubmitted(activeItem)}
-      />
+      <div
+        role="tabpanel"
+        id={`review-panel-${activeItem.document_type}-${activeItem.stored_record?.id}`}
+        aria-labelledby={`review-tab-${activeItem.document_type}-${activeItem.stored_record?.id}`}
+      >
+        <DocumentReviewForm
+          key={`${activeItem.document_type}-${activeItem.stored_record?.id}`}
+          item={activeItem}
+          onSubmitted={() => handleSubmitted(activeItem)}
+        />
+      </div>
     </div>
   );
 }

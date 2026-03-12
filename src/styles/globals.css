@@ -36,6 +36,20 @@
   --sidebar-accent-foreground: oklch(0.205 0.042 265.755);
   --sidebar-border: oklch(0.922 0.016 255.585);
   --sidebar-ring: oklch(0.205 0.042 265.755);
+
+  /* Semantic status tokens */
+  --success-bg: oklch(0.965 0.04 155);
+  --success-bg-subtle: oklch(0.975 0.025 155 / 0.5);
+  --success-border: oklch(0.85 0.07 155);
+  --success-fg: oklch(0.42 0.1 155);
+  --warning-bg: oklch(0.96 0.06 85);
+  --warning-bg-subtle: oklch(0.97 0.04 85 / 0.5);
+  --warning-border: oklch(0.84 0.1 85);
+  --warning-fg: oklch(0.5 0.14 65);
+  --error-bg: oklch(0.96 0.04 25);
+  --error-bg-subtle: oklch(0.97 0.025 25 / 0.5);
+  --error-border: oklch(0.85 0.08 25);
+  --error-fg: oklch(0.5 0.17 25);
 }
 
 .dark {
@@ -71,6 +85,20 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0.032 264.052);
   --sidebar-ring: oklch(0.488 0.243 264.376);
+
+  /* Semantic status tokens */
+  --success-bg: oklch(0.3 0.06 155);
+  --success-bg-subtle: oklch(0.25 0.04 155 / 0.2);
+  --success-border: oklch(0.4 0.08 155);
+  --success-fg: oklch(0.75 0.1 155);
+  --warning-bg: oklch(0.3 0.06 85);
+  --warning-bg-subtle: oklch(0.25 0.04 85 / 0.2);
+  --warning-border: oklch(0.45 0.1 85);
+  --warning-fg: oklch(0.75 0.12 65);
+  --error-bg: oklch(0.28 0.06 25);
+  --error-bg-subtle: oklch(0.25 0.04 25 / 0.2);
+  --error-border: oklch(0.4 0.1 25);
+  --error-fg: oklch(0.7 0.14 25);
 }
 
 @theme inline {
@@ -106,6 +134,18 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-success-bg: var(--success-bg);
+  --color-success-bg-subtle: var(--success-bg-subtle);
+  --color-success-border: var(--success-border);
+  --color-success-fg: var(--success-fg);
+  --color-warning-bg: var(--warning-bg);
+  --color-warning-bg-subtle: var(--warning-bg-subtle);
+  --color-warning-border: var(--warning-border);
+  --color-warning-fg: var(--warning-fg);
+  --color-error-bg: var(--error-bg);
+  --color-error-bg-subtle: var(--error-bg-subtle);
+  --color-error-border: var(--error-border);
+  --color-error-fg: var(--error-fg);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -120,4 +160,17 @@
     @apply bg-background text-foreground;
     font-family: "Inter", system-ui, -apple-system, sans-serif;
   }
+}
+
+.custom-scrollbar {
+  scrollbar-width: thin;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #888;
+  border-radius: 4px;
 }

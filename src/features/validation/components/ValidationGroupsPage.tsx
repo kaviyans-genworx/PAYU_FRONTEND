@@ -88,35 +88,35 @@ const bucketConfig: Record<
   failed: {
     label: "Failed",
     icon: XCircle,
-    borderColor: "border-red-200 dark:border-red-800",
-    bgColor: "bg-red-50/30 dark:bg-red-950/10",
-    headerBg: "bg-red-50 dark:bg-red-950/30",
-    iconColor: "text-red-600 dark:text-red-400",
-    textColor: "text-red-800 dark:text-red-300",
-    cardBorder: "border-red-200 dark:border-red-800",
-    cardBg: "bg-red-50/50 dark:bg-red-950/20",
+    borderColor: "border-error-border",
+    bgColor: "bg-error-bg-subtle",
+    headerBg: "bg-error-bg",
+    iconColor: "text-error-fg",
+    textColor: "text-error-fg",
+    cardBorder: "border-error-border",
+    cardBg: "bg-error-bg-subtle",
   },
   issues: {
     label: "Issues",
     icon: AlertTriangle,
-    borderColor: "border-amber-200 dark:border-amber-800",
-    bgColor: "bg-amber-50/30 dark:bg-amber-950/10",
-    headerBg: "bg-amber-50 dark:bg-amber-950/30",
-    iconColor: "text-amber-600 dark:text-amber-400",
-    textColor: "text-amber-800 dark:text-amber-300",
-    cardBorder: "border-amber-200 dark:border-amber-800",
-    cardBg: "bg-amber-50/50 dark:bg-amber-950/20",
+    borderColor: "border-warning-border",
+    bgColor: "bg-warning-bg-subtle",
+    headerBg: "bg-warning-bg",
+    iconColor: "text-warning-fg",
+    textColor: "text-warning-fg",
+    cardBorder: "border-warning-border",
+    cardBg: "bg-warning-bg-subtle",
   },
   passed: {
     label: "Passed",
     icon: CheckCircle2,
-    borderColor: "border-emerald-200 dark:border-emerald-800",
-    bgColor: "bg-emerald-50/30 dark:bg-emerald-950/10",
-    headerBg: "bg-emerald-50 dark:bg-emerald-950/30",
-    iconColor: "text-emerald-600 dark:text-emerald-400",
-    textColor: "text-emerald-800 dark:text-emerald-300",
-    cardBorder: "border-emerald-200 dark:border-emerald-800",
-    cardBg: "bg-emerald-50/50 dark:bg-emerald-950/20",
+    borderColor: "border-success-border",
+    bgColor: "bg-success-bg-subtle",
+    headerBg: "bg-success-bg",
+    iconColor: "text-success-fg",
+    textColor: "text-success-fg",
+    cardBorder: "border-success-border",
+    cardBg: "bg-success-bg-subtle",
   },
 };
 
@@ -293,9 +293,11 @@ export function ValidationGroupsPage() {
         </div>
         <div className="flex items-center gap-2">
           {/* View toggle */}
-          <div className="flex items-center rounded-lg border bg-muted/50 p-0.5">
+          <div className="flex items-center rounded-lg border bg-muted/50 p-0.5" role="radiogroup" aria-label="View mode">
             <button
               onClick={() => handleSetViewMode("table")}
+              role="radio"
+              aria-checked={viewMode === "table"}
               className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                 viewMode === "table"
                   ? "bg-background text-foreground shadow-sm"
@@ -308,6 +310,8 @@ export function ValidationGroupsPage() {
             </button>
             <button
               onClick={() => handleSetViewMode("card")}
+              role="radio"
+              aria-checked={viewMode === "card"}
               className={`inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-all ${
                 viewMode === "card"
                   ? "bg-background text-foreground shadow-sm"
@@ -342,11 +346,15 @@ export function ValidationGroupsPage() {
         </div>
       ) : groups.length === 0 ? (
         <Card>
-          <CardContent className="flex flex-col items-center justify-center py-16">
-            <ShieldCheck className="h-12 w-12 text-muted-foreground/40 mb-3" />
-            <p className="text-muted-foreground">
-              No validation groups found.
+          <CardContent className="flex flex-col items-center justify-center py-16 gap-3">
+            <ShieldCheck className="h-12 w-12 text-muted-foreground/40" />
+            <p className="text-lg font-medium">No validation groups yet</p>
+            <p className="text-sm text-muted-foreground text-center max-w-sm">
+              Validation groups are created automatically after documents are uploaded and reviewed.
             </p>
+            <Button className="mt-2 gap-2" onClick={() => navigate("/upload")}>
+              Upload Documents
+            </Button>
           </CardContent>
         </Card>
       ) : viewMode === "table" ? (

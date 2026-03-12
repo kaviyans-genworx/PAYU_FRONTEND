@@ -112,7 +112,7 @@ export interface SubmitPOReviewPayload {
 
 export interface SubmitInvoiceReviewPayload {
   invoice_number?: string;
-  reference_po_number: string;
+  po_references: string[];
   vendor_name?: string;
   vendor_email?: string;
   vendor_phone?: string;
@@ -161,6 +161,9 @@ export interface InvoiceBrief {
   id: number;
   invoice_number?: string;
   vendor_name?: string;
+  subtotal?: number;
+  tax_amount?: number;
+  discount_amount?: number;
   total_amount?: number;
 }
 
@@ -168,6 +171,9 @@ export interface POBrief {
   id: number;
   po_number?: string;
   vendor_name?: string;
+  subtotal?: number;
+  tax_amount?: number;
+  discount_amount?: number;
   total_amount?: number;
 }
 
@@ -200,6 +206,30 @@ export interface DiscrepancyOut {
   ai_explanation?: string;
 }
 
+export interface MappedItemPair {
+  link_id: number;
+  matched_quantity?: number;
+
+  invoice_item_id: number;
+  invoice_item_code?: string;
+  invoice_item_description?: string;
+  invoice_quantity?: number;
+  invoice_unit_price?: number;
+  invoice_total_price?: number;
+
+  po_item_id: number;
+  po_item_code?: string;
+  po_item_description?: string;
+  po_quantity?: number;
+  po_unit_price?: number;
+  po_total_price?: number;
+}
+
+export interface MappedItemsOut {
+  group_id: number;
+  mapped_items: MappedItemPair[];
+}
+
 export interface ValidationResultsOut {
   group_id: number;
   validation_status?: string;
@@ -209,6 +239,7 @@ export interface ValidationResultsOut {
   merged_invoice_items: MergedItem[];
   merged_po_items: MergedItem[];
   discrepancies: DiscrepancyOut[];
+  mapped_items: MappedItemPair[];
   ai_summary?: string;
   ai_suggestions: string[];
 }

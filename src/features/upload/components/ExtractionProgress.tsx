@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { CheckCircle2, Loader2, FileUp, ScanSearch, Layers, Database, Sparkles } from "lucide-react";
+import { CheckCircle2, Loader2, FileUp, ScanSearch, Layers, Database, Sparkles, Info } from "lucide-react";
 
 interface Step {
   label: string;
@@ -40,10 +40,14 @@ export function ExtractionProgress({ isActive }: { isActive: boolean }) {
   if (!isActive) return null;
 
   return (
-    <div className="rounded-xl border bg-card p-6 shadow-sm">
-      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-5">
+    <div className="rounded-xl border bg-card p-6 shadow-sm" role="status" aria-live="polite" aria-label="Extraction progress">
+      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">
         Extraction Progress
       </h3>
+      <p className="text-xs text-muted-foreground flex items-center gap-1 mb-5">
+        <Info className="h-3 w-3 shrink-0" />
+        Estimated steps — actual processing happens on the server.
+      </p>
       <div className="relative space-y-0">
         {STEPS.map((step, idx) => {
           const isVisible = idx < visibleSteps;

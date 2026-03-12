@@ -233,28 +233,24 @@ export function UploadPage() {
 
       {/* Document type selector */}
       <div className="flex gap-3">
-        <button
+        <Button
+          variant={docType === "invoice" ? "default" : "outline"}
           onClick={() => setDocType("invoice")}
-          className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
-            docType === "invoice"
-              ? "border-primary bg-primary/5 text-primary"
-              : "border-border text-muted-foreground hover:border-primary/40"
-          }`}
+          aria-pressed={docType === "invoice"}
+          className="gap-2"
         >
           <FileText className="h-4 w-4" />
           Invoice
-        </button>
-        <button
+        </Button>
+        <Button
+          variant={docType === "po" ? "default" : "outline"}
           onClick={() => setDocType("po")}
-          className={`flex items-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
-            docType === "po"
-              ? "border-primary bg-primary/5 text-primary"
-              : "border-border text-muted-foreground hover:border-primary/40"
-          }`}
+          aria-pressed={docType === "po"}
+          className="gap-2"
         >
           <FileSpreadsheet className="h-4 w-4" />
           Purchase Order
-        </button>
+        </Button>
       </div>
 
       {/* Dropzone */}
@@ -441,11 +437,11 @@ export function UploadPage() {
                   label={isInvoice ? "Invoice Number" : "PO Number"}
                   value={isInvoice ? d.invoice_number : d.po_number}
                 />
-                {isInvoice && typeof d.reference_po_number === "string" && d.reference_po_number && (
+                {isInvoice && Array.isArray(d.po_references) && (d.po_references as string[]).length > 0 && (
                   <InfoRow
                     icon={FileSpreadsheet}
-                    label="Reference PO"
-                    value={d.reference_po_number}
+                    label="PO References"
+                    value={(d.po_references as string[]).join(", ")}
                   />
                 )}
                 <InfoRow
