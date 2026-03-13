@@ -34,6 +34,7 @@ export function DashboardLayout() {
   const location = useLocation();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
 
   // Focus trap for mobile sidebar
@@ -74,7 +75,16 @@ export function DashboardLayout() {
 
   const handleLogout = async () => {
     await dispatch(logoutUser());
+    setLogoutConfirmOpen(false);
     navigate("/login", { replace: true });
+  };
+
+  const openLogoutConfirm = () => {
+    setLogoutConfirmOpen(true);
+  };
+
+  const closeLogoutConfirm = () => {
+    setLogoutConfirmOpen(false);
   };
 
   const isActive = (href: string) => location.pathname.startsWith(href);
@@ -120,7 +130,7 @@ export function DashboardLayout() {
       <aside
         ref={sidebarRef}
         className={`
-          fixed inset-y-0 left-0 z-50 flex flex-col bg-sidebar border-r border-sidebar-border
+          fixed inset-y-0 left-0 z-50 flex flex-col bg-sidebar border-r border-sidebar-border overflow-x-hidden
           transition-all duration-200 ease-in-out
           ${collapsed ? "w-[68px]" : "w-64"}
           lg:relative
@@ -148,7 +158,7 @@ export function DashboardLayout() {
         </div>
 
         {/* Navigation */}
-        <nav className="flex flex-col gap-1 p-3 flex-1 overflow-y-auto">
+        <nav className="flex flex-col gap-1 p-3 flex-1 overflow-y-auto overflow-x-hidden">
           {navItems.map((item) => {
             const active = isActive(item.href);
             return (
@@ -186,7 +196,7 @@ export function DashboardLayout() {
         </nav>
 
         {/* Bottom actions */}
-        <div className="shrink-0 p-3 border-t border-sidebar-border space-y-1">
+        <div className="shrink-0 p-3 border-t border-sidebar-border space-y-1 overflow-x-hidden">
           {/* Desktop collapse toggle */}
           <div className="relative group">
             <button
@@ -212,7 +222,7 @@ export function DashboardLayout() {
           <div className="relative group">
             <Button
               variant="ghost"
-              onClick={handleLogout}
+              onClick={openLogoutConfirm}
               className={`w-full gap-3 text-muted-foreground hover:text-destructive ${collapsed ? "justify-center px-0" : "justify-start"}`}
               aria-label={collapsed ? "Sign out" : undefined}
             >
@@ -235,6 +245,25 @@ export function DashboardLayout() {
           aria-hidden="true"
           onClick={() => setMobileSidebarOpen(false)}
         />
+      )}
+
+      {logoutConfirmOpen && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 px-4" role="dialog" aria-modal="true" aria-labelledby="logout-confirm-title" aria-describedby="logout-confirm-description">
+          <div className="w-full max-w-md rounded-xl border bg-background p-6 shadow-lg">
+            <h2 id="logout-confirm-title" className="text-lg font-semibold text-foreground">Confirm sign out</h2>
+            <p id="logout-confirm-description" className="mt-2 text-sm text-muted-foreground">
+              Are you sure you want to sign out?
+            </p>
+            <div className="mt-6 flex justify-end gap-2">
+              <Button variant="outline" onClick={closeLogoutConfirm}>
+                Cancel
+              </Button>
+              <Button variant="destructive" onClick={handleLogout}>
+                Sign out
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Main Content */}
