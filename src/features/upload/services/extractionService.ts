@@ -10,6 +10,8 @@ export interface ExtractionResult {
     max_possible: number;
     percentage: number;
     requires_review: boolean;
+    /** Fields that must be present for auto-approval (missing ones trigger human review) */
+    critical_fields_missing: string[];
     breakdown: Array<{
       field: string;
       max_score: number;
@@ -25,6 +27,11 @@ export interface ExtractionResult {
   file_url?: string;
   message?: string;
   duplicate?: boolean;
+  /**
+   * Fields whose values were auto-generated because they were missing in the extraction.
+   * The reviewer MUST update these before the document can be considered valid.
+   */
+  auto_generated_fields?: string[];
 }
 
 export interface PendingReviewsResponse {
