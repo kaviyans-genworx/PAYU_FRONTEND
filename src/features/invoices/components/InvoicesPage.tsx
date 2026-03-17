@@ -14,7 +14,7 @@ import {
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Pagination } from "@/components/common/Pagination";
 import { usePagination } from "@/hooks/usePagination";
-import { FileText, RefreshCw, AlertCircle, Search, Upload } from "lucide-react";
+import { FileText, RefreshCw, AlertCircle, Search } from "lucide-react";
 
 function statusVariant(
   status: string,
@@ -207,12 +207,8 @@ export function InvoicesPage() {
             <FileText className="h-12 w-12 text-muted-foreground/40" />
             <p className="text-lg font-medium">No invoices yet</p>
             <p className="text-sm text-muted-foreground text-center max-w-sm">
-              Upload an invoice document to get started with extraction and processing.
+              No invoice records are available right now. Invoices will appear here once they are extracted.
             </p>
-            <Button className="mt-2 gap-2" onClick={() => navigate("/upload")}>
-              <Upload className="h-4 w-4" />
-              Upload Invoice
-            </Button>
           </CardContent>
         </Card>
       ) : (

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Outlet, useNavigate, useLocation } from "react-router-dom";
-import { useAppDispatch } from "@/hooks/useAppStore";
+import { useAppDispatch, useAppSelector } from "@/hooks/useAppStore";
 import { logoutUser } from "@/features/auth";
 import { Button } from "@/components/ui/button";
 import {
@@ -8,7 +8,6 @@ import {
   Upload,
   FileSpreadsheet,
   ShieldCheck,
-  FileSearch,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -17,25 +16,35 @@ import {
   PanelLeftOpen,
   ChevronRight,
   User,
+  Users,
+  UserPlus,
 } from "lucide-react";
 
-const navItems = [
+const ADMIN_ROLE_ID = 1;
+
+const userNavItems = [
   { label: "Dashboard", icon: LayoutDashboard, href: "/dashboard" },
   { label: "Upload", icon: Upload, href: "/upload" },
   { label: "Invoices", icon: FileText, href: "/invoices" },
   { label: "Purchase Orders", icon: FileSpreadsheet, href: "/purchase-orders" },
   { label: "Validation", icon: ShieldCheck, href: "/validation" },
-  { label: "Review", icon: FileSearch, href: "/review" },
+];
+
+const adminNavItems = [
+  { label: "User Management", icon: Users, href: "/admin/users" },
+  { label: "Create User", icon: UserPlus, href: "/admin/users/create" },
 ];
 
 export function DashboardLayout() {
   const dispatch = useAppDispatch();
+  const { roleId } = useAppSelector((state) => state.auth);
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   const sidebarRef = useRef<HTMLElement>(null);
+  const navItems = roleId === ADMIN_ROLE_ID ? adminNavItems : userNavItems;
 
   // Focus trap for mobile sidebar
   const trapFocus = useCallback((e: KeyboardEvent) => {

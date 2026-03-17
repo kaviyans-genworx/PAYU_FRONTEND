@@ -53,4 +53,12 @@ export const reviewService = {
     );
     return data;
   },
+
+  async deletePurchaseOrder(poId: number): Promise<{ message: string }> {
+    const { data } = await axios.delete<{ message: string }>(
+      `${CORE_API_BASE_URL}/purchase-orders/${poId}`,
+      { headers: authHeaders() },
+    );
+    return data;
+  },
 };

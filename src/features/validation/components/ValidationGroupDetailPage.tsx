@@ -28,6 +28,7 @@ import {
   ChevronDown,
   Users,
   Hash,
+  Mail,
 } from "lucide-react";
 
 /* ─── Helpers ──────────────────────────────────────────────── */
@@ -981,6 +982,12 @@ export function ValidationGroupDetailPage() {
           <p className="text-sm text-muted-foreground mt-0.5">
             Group #{data.group_id} — detailed validation report
           </p>
+        </div>
+        <div className="ml-auto">
+          <Button onClick={() => navigate(`/validation/${data.group_id}/send-mail`)}>
+            <Mail className="h-4 w-4" />
+            Send Mail
+          </Button>
         </div>
       </div>
 

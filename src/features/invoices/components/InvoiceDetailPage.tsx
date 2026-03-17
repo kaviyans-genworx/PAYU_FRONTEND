@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useAppDispatch } from "@/hooks/useAppStore";
-import { addReviewItem } from "@/features/review/slices/reviewSlice";
 import { invoiceService } from "../services/invoiceService";
 import type { InvoiceOut } from "@/types/documents";
 import { Badge } from "@/components/ui/badge";
@@ -49,11 +47,9 @@ function statusVariant(
 export function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const [invoice, setInvoice] = useState<InvoiceOut | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -62,36 +58,6 @@ export function InvoiceDetailPage() {
     invoiceService
       .getInvoice(Number(id))
       .then((inv) => {
-        if (inv.status?.toUpperCase() === "PENDING") {
-          dispatch(
-            addReviewItem({
-              document_type: "invoice",
-              extracted_data: {
-                invoice_number: inv.invoice_number,
-                currency: inv.currency,
-                due_date: inv.due_date,
-                subtotal: inv.subtotal,
-                tax_amount: inv.tax_amount,
-                discount_amount: inv.discount_amount,
-                total_amount: inv.total_amount,
-                line_items: inv.line_items?.map((li, idx) => ({
-                  line_number: li.line_number ?? idx + 1,
-                  item_code: li.item_code,
-                  item_description: li.item_description,
-                  quantity: li.quantity,
-                  unit_price: li.unit_price,
-                  total_price: li.total_price,
-                })),
-              },
-              stored_record: { id: inv.id, invoice_number: inv.invoice_number },
-              file_url: inv.file_url,
-            }),
-          );
-          setRedirecting(true);
-          setLoading(false);
-          setTimeout(() => navigate("/review", { replace: true }), 2000);
-          return;
-        }
         setInvoice(inv);
       })
       .catch((err: unknown) => {
@@ -102,26 +68,7 @@ export function InvoiceDetailPage() {
         setError(msg);
       })
       .finally(() => setLoading(false));
-  }, [id, dispatch, navigate]);
-
-  if (redirecting) {
-    return (
-      <div className="flex flex-col items-center justify-center h-64 gap-4">
-        <div className="flex items-center gap-3 rounded-lg border border-amber-400/50 bg-amber-50 dark:bg-amber-950/30 px-6 py-4">
-          <AlertCircle className="h-5 w-5 text-amber-600 shrink-0" />
-          <div>
-            <p className="text-sm font-medium text-amber-800 dark:text-amber-400">
-              This invoice is pending review
-            </p>
-            <p className="text-xs text-amber-700 dark:text-amber-500 mt-0.5">
-              Redirecting to the review page…
-            </p>
-          </div>
-        </div>
-        <LoadingSpinner size={24} />
-      </div>
-    );
-  }
+  }, [id, navigate]);
 
   if (loading) {
     return (
@@ -190,6 +137,8 @@ export function InvoiceDetailPage() {
             </CardHeader>
             <CardContent className="divide-y">
               <InfoRow label="Invoice Number" value={invoice.invoice_number} />
+              <InfoRow label="Status" value={invoice.status} />
+              <InfoRow label="Vendor ID" value={invoice.vendor_id} />
               <InfoRow label="Currency" value={invoice.currency} />
               <InfoRow
                 label="Due Date"
@@ -207,6 +156,29 @@ export function InvoiceDetailPage() {
                     : undefined
                 }
               />
+              <InfoRow
+                label="Updated"
+                value={
+                  invoice.updated_at
+                    ? new Date(invoice.updated_at).toLocaleString()
+                    : undefined
+                }
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Vendor Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="divide-y">
+              <InfoRow label="Vendor Name" value={invoice.vendor?.vendor_name} />
+              <InfoRow label="Email" value={invoice.vendor?.vendor_email} />
+              <InfoRow label="Phone" value={invoice.vendor?.vendor_phone} />
+              <InfoRow label="Address" value={invoice.vendor?.vendor_address} />
+              <InfoRow label="Tax / GST ID" value={invoice.vendor?.gst_number} />
             </CardContent>
           </Card>
 

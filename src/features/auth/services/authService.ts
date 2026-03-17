@@ -1,6 +1,10 @@
 import axiosInstance from "@/lib/axios";
 import { ENDPOINTS } from "@/config/env";
-import type { AuthResponse, MessageResponse } from "@/types/auth";
+import type {
+  AuthResponse,
+  MessageResponse,
+  TokenValidationResponse,
+} from "@/types/auth";
 
 export const authService = {
   async login(email: string, password: string): Promise<AuthResponse> {
@@ -15,19 +19,28 @@ export const authService = {
     return data;
   },
 
-  async register(
-    name: string,
-    email: string,
-    password: string,
-  ): Promise<MessageResponse> {
-    const params = new URLSearchParams();
-    params.append("name", name);
-    params.append("email", email);
-    params.append("password", password);
+  async validateToken(): Promise<TokenValidationResponse> {
+    const { data } = await axiosInstance.get<TokenValidationResponse>(
+      ENDPOINTS.AUTH.VALIDATE_TOKEN,
+    );
+    return data;
+  },
 
+  async changePassword(
+    oldPassword: string,
+    newPassword: string,
+  ): Promise<MessageResponse> {
     const { data } = await axiosInstance.post<MessageResponse>(
-      ENDPOINTS.AUTH.REGISTER,
-      params,
+      ENDPOINTS.AUTH.CHANGE_PASSWORD,
+      {
+        old_password: oldPassword,
+        new_password: newPassword,
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+        },
+      },
     );
     return data;
   },

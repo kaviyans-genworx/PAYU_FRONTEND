@@ -24,4 +24,12 @@ export const poService = {
     );
     return data;
   },
+
+  async deletePurchaseOrder(id: number): Promise<{ message: string }> {
+    const { data } = await axios.delete<{ message: string }>(
+      `${CORE_API_BASE_URL}/purchase-orders/${id}`,
+      { headers: authHeaders() },
+    );
+    return data;
+  },
 };

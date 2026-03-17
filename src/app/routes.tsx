@@ -4,8 +4,10 @@ import { createBrowserRouter, Navigate } from "react-router-dom";
 import { AuthLayout } from "@/layouts/AuthLayout";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { ProtectedRoute } from "@/components/common/ProtectedRoute";
+import { AdminCreateUserPage } from "@/features/auth/components/AdminCreateUserPage";
+import { AdminUserManagementPage } from "@/features/auth/components/AdminUserManagementPage";
+import { ChangePasswordPage } from "@/features/auth/components/ChangePasswordPage";
 import { LoginPage } from "@/features/auth/components/LoginPage";
-import { SignUpPage } from "@/features/auth/components/SignUpPage";
 import { DashboardPage } from "@/features/dashboard";
 import { UploadPage } from "@/features/upload";
 import { ReviewPage } from "@/features/review";
@@ -14,6 +16,7 @@ import { PurchaseOrdersPage, PODetailPage } from "@/features/purchase-orders";
 import {
   ValidationGroupsPage,
   ValidationGroupDetailPage,
+  ValidationMailPage,
 } from "@/features/validation";
 
 export const router = createBrowserRouter([
@@ -28,18 +31,26 @@ export const router = createBrowserRouter([
         path: "login",
         element: <LoginPage />,
       },
-      {
-        path: "signup",
-        element: <SignUpPage />,
-      },
     ],
   },
   {
     element: <ProtectedRoute />,
     children: [
       {
+        path: "change-password",
+        element: <ChangePasswordPage />,
+      },
+      {
         element: <DashboardLayout />,
         children: [
+          {
+            path: "admin/users",
+            element: <AdminUserManagementPage />,
+          },
+          {
+            path: "admin/users/create",
+            element: <AdminCreateUserPage />,
+          },
           {
             path: "dashboard",
             element: <DashboardPage />,
@@ -75,6 +86,10 @@ export const router = createBrowserRouter([
           {
             path: "validation/:groupId",
             element: <ValidationGroupDetailPage />,
+          },
+          {
+            path: "validation/:groupId/send-mail",
+            element: <ValidationMailPage />,
           },
         ],
       },
