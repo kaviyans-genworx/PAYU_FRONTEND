@@ -1,7 +1,8 @@
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import type { PayloadAction } from "@reduxjs/toolkit";
 import { extractionService } from "../services/extractionService";
-import type { ExtractionEventPayload, ExtractionResult } from "../services/extractionService";
+import type { ExtractionResult } from "../services/extractionService";
+import { clearExtractionStep } from "../components/UploadPage";
 
 /* ---- sessionStorage helpers for surviving page refresh ---- */
 
@@ -33,8 +34,6 @@ interface UploadState {
   error: string | null;
   result: ExtractionResult | null;
   jobId: string | null;
-  currentStep: string | null;
-  events: ExtractionEventPayload[];
 }
 
 const initialState: UploadState = {
@@ -42,8 +41,6 @@ const initialState: UploadState = {
   error: null,
   result: loadResultFromStorage(),
   jobId: null,
-  currentStep: null,
-  events: [],
 };
 
 export const extractPurchaseOrder = createAsyncThunk<
@@ -55,22 +52,17 @@ export const extractPurchaseOrder = createAsyncThunk<
     const uploadResponse = await extractionService.uploadPurchaseOrder(file);
     dispatch(setJobId(uploadResponse.job_id));
 
-    const result = await extractionService.waitForExtractionCompletion(
-      uploadResponse.job_id,
-      (event) => {
-        dispatch(pushExtractionEvent(event));
-      },
-    );
-
+    // Poll until extraction completes or fails
+    const result = await extractionService.pollForResult(uploadResponse.job_id);
     return result;
   } catch (err: unknown) {
     if (err instanceof Error) {
-      const axiosErr = err as { response?: { data?: { detail?: string; message?: string } } };
-      return rejectWithValue(
-        axiosErr.response?.data?.detail || axiosErr.response?.data?.message || err.message,
-      );
+      if (err.message.includes("Gemini OCR") || err.message.includes("timeout")) {
+        return rejectWithValue(err.message);
+      }
+      return rejectWithValue("Gemini OCR extraction failed. Please try again.");
     }
-    return rejectWithValue("Extraction failed");
+    return rejectWithValue("Gemini OCR extraction failed.");
   }
 });
 
@@ -83,21 +75,14 @@ const uploadSlice = createSlice({
       state.error = null;
       state.result = null;
       state.jobId = null;
-      state.currentStep = null;
-      state.events = [];
       clearResultStorage();
+      clearExtractionStep();
     },
     clearUploadError(state) {
       state.error = null;
     },
     setJobId(state, action: PayloadAction<string>) {
       state.jobId = action.payload;
-    },
-    pushExtractionEvent(state, action: PayloadAction<ExtractionEventPayload>) {
-      state.events.push(action.payload);
-      if (action.payload.step) {
-        state.currentStep = action.payload.step;
-      }
     },
     restoreResult(state, action: PayloadAction<ExtractionResult>) {
       state.loading = false;
@@ -112,8 +97,6 @@ const uploadSlice = createSlice({
         state.loading = true;
         state.error = null;
         state.result = null;
-        state.currentStep = null;
-        state.events = [];
         clearResultStorage();
       })
       .addCase(
@@ -121,13 +104,14 @@ const uploadSlice = createSlice({
         (state, action: PayloadAction<ExtractionResult>) => {
           state.loading = false;
           state.result = action.payload;
-          state.currentStep = "completed";
           saveResultToStorage(action.payload);
+          clearExtractionStep();
         },
       )
       .addCase(extractPurchaseOrder.rejected, (state, action) => {
         state.loading = false;
-        state.error = action.payload ?? "Extraction failed";
+        state.error = action.payload ?? "Gemini OCR extraction failed.";
+        clearExtractionStep();
       });
   },
 });
@@ -137,6 +121,6 @@ export const {
   clearUploadError,
   restoreResult,
   setJobId,
-  pushExtractionEvent,
 } = uploadSlice.actions;
 export default uploadSlice.reducer;
+

@@ -20,7 +20,7 @@ export function ProtectedRoute() {
   }, [dispatch, isAuthenticated, isLoading, roleId]);
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
+    return <Navigate to="/" replace />;
   }
 
   if (isLoading || roleId === null) {

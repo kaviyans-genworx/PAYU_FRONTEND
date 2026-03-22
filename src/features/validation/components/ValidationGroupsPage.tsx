@@ -11,6 +11,7 @@ import {
   CardTitle,
   CardDescription,
 } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
 import { Pagination } from "@/components/common/Pagination";
 import { usePagination } from "@/hooks/usePagination";
@@ -24,6 +25,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   XCircle,
+  Search,
 } from "lucide-react";
 
 type ViewMode = "table" | "card";
@@ -241,7 +243,51 @@ export function ValidationGroupsPage() {
     localStorage.setItem("validation_current_layout", mode);
   };
 
-  const tablePagination = usePagination(groups, 10);
+  // Search, filter, sort state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortField, setSortField] = useState<"date" | "invoices" | "pos">("date");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  // Derive unique statuses for filter dropdown
+  const uniqueStatuses = useMemo(
+    () => Array.from(new Set(groups.map((g) => g.status))).sort(),
+    [groups],
+  );
+
+  // Filtered & sorted groups (used for table view)
+  const filteredGroups = useMemo(() => {
+    let list = groups;
+
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase();
+      list = list.filter((g) => String(g.id).includes(q));
+    }
+
+    if (statusFilter !== "all") {
+      list = list.filter((g) => g.status === statusFilter);
+    }
+
+    const sorted = [...list].sort((a, b) => {
+      let cmp = 0;
+      switch (sortField) {
+        case "date":
+          cmp = new Date(a.created_at ?? 0).getTime() - new Date(b.created_at ?? 0).getTime();
+          break;
+        case "invoices":
+          cmp = (a.invoice_count ?? 0) - (b.invoice_count ?? 0);
+          break;
+        case "pos":
+          cmp = (a.po_count ?? 0) - (b.po_count ?? 0);
+          break;
+      }
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+
+    return sorted;
+  }, [groups, searchQuery, statusFilter, sortField, sortDir]);
+
+  const tablePagination = usePagination(filteredGroups, 10);
 
   // Bucket groups for Card View
   const buckets = useMemo(() => {
@@ -330,6 +376,51 @@ export function ValidationGroupsPage() {
           </Button>
         </div>
       </div>
+
+      {/* Search, Filter, Sort controls (Visible only in Table Mode to match request) */}
+      {viewMode === "table" && (
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by Group ID…"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-8"
+            />
+          </div>
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Filter by status"
+          >
+            <option value="all">All Statuses</option>
+            {uniqueStatuses.map((s) => (
+              <option key={s} value={s}>
+                {s}
+              </option>
+            ))}
+          </select>
+          <select
+            value={`${sortField}-${sortDir}`}
+            onChange={(e) => {
+              const [f, d] = e.target.value.split("-") as ["date" | "invoices" | "pos", "asc" | "desc"];
+              setSortField(f);
+              setSortDir(d);
+            }}
+            className="rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+            aria-label="Sort by"
+          >
+            <option value="date-desc">Date (Newest)</option>
+            <option value="date-asc">Date (Oldest)</option>
+            <option value="invoices-desc">Invoices (High-Low)</option>
+            <option value="invoices-asc">Invoices (Low-High)</option>
+            <option value="pos-desc">POs (High-Low)</option>
+            <option value="pos-asc">POs (Low-High)</option>
+          </select>
+        </div>
+      )}
 
       {/* Error */}
       {error && (

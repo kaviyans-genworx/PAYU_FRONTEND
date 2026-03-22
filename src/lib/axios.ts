@@ -1,15 +1,15 @@
 import axios from "axios";
 import { TOKEN_KEY } from "@/config/constants";
+import { CORE_API_BASE_URL , API_BASE_URL } from "@/config/env";
 
-const axiosInstance = axios.create({
+export const core_axios_intance = axios.create({
+  baseURL: CORE_API_BASE_URL,
   withCredentials: true,
-  headers: {
-    "Content-Type": "application/x-www-form-urlencoded",
-  },
 });
 
-// Request interceptor – attach access token
-axiosInstance.interceptors.request.use(
+
+// REQUEST INTERCEPTOR - ADD AUTH TOKEN TO HEADER
+core_axios_intance.interceptors.request.use(
   (config) => {
     const token = localStorage.getItem(TOKEN_KEY);
     if (token) {
@@ -20,8 +20,26 @@ axiosInstance.interceptors.request.use(
   (error) => Promise.reject(error),
 );
 
-// Response interceptor – handle 401 / token refresh
-axiosInstance.interceptors.response.use(
+// Variables for handling concurrent requests during refresh
+let isRefreshing = false;
+let failedQueue: Array<{
+  resolve: (token: string) => void;
+  reject: (error: any) => void;
+}> = [];
+
+const processQueue = (error: any, token: string | null = null) => {
+  failedQueue.forEach((prom) => {
+    if (error) {
+      prom.reject(error);
+    } else {
+      prom.resolve(token as string);
+    }
+  });
+  failedQueue = [];
+};
+
+// REFRESH TOKEN INTERCEPTOR - HANDLES 401 UNAUTHORIZED
+core_axios_intance.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
@@ -29,22 +47,47 @@ axiosInstance.interceptors.response.use(
     if (
       error.response?.status === 401 &&
       !originalRequest._retry &&
-      !originalRequest.url?.includes("/auth/login")
+      !originalRequest.url?.includes("/auth/login") &&
+      !originalRequest.url?.includes("/auth/refresh")
     ) {
+      if (isRefreshing) {
+        return new Promise(function (resolve, reject) {
+          failedQueue.push({ resolve, reject });
+        })
+          .then((token) => {
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return core_axios_intance(originalRequest);
+          })
+          .catch((err) => {
+            return Promise.reject(err);
+          });
+      }
+
       originalRequest._retry = true;
+      isRefreshing = true;
 
       try {
-        const { data } = await axios.post("/api/v1/auth/refresh", null, {
-          withCredentials: true,
-        });
+        const { data } = await axios.post(
+          `${API_BASE_URL}/auth/refresh`,
+          {},
+          { withCredentials: true }
+        );
+
         const newToken = data.access_token;
         localStorage.setItem(TOKEN_KEY, newToken);
+        core_axios_intance.defaults.headers.common.Authorization = `Bearer ${newToken}`;
         originalRequest.headers.Authorization = `Bearer ${newToken}`;
-        return axiosInstance(originalRequest);
-      } catch {
+
+        processQueue(null, newToken);
+
+        return core_axios_intance(originalRequest);
+      } catch (err) {
+        processQueue(err, null);
         localStorage.removeItem(TOKEN_KEY);
-        window.location.href = "/login";
-        return Promise.reject(error);
+        window.location.href = "/";
+        return Promise.reject(err);
+      } finally {
+        isRefreshing = false;
       }
     }
 
@@ -52,4 +95,4 @@ axiosInstance.interceptors.response.use(
   },
 );
 
-export default axiosInstance;
+export default core_axios_intance;

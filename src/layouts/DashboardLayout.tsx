@@ -18,6 +18,7 @@ import {
   User,
   Users,
   UserPlus,
+  CreditCard,
 } from "lucide-react";
 
 const ADMIN_ROLE_ID = 1;
@@ -28,6 +29,7 @@ const userNavItems = [
   { label: "Invoices", icon: FileText, href: "/invoices" },
   { label: "Purchase Orders", icon: FileSpreadsheet, href: "/purchase-orders" },
   { label: "Validation", icon: ShieldCheck, href: "/validation" },
+  { label: "Payments", icon: CreditCard, href: "/payments" },
 ];
 
 const adminNavItems = [
@@ -85,7 +87,7 @@ export function DashboardLayout() {
   const handleLogout = async () => {
     await dispatch(logoutUser());
     setLogoutConfirmOpen(false);
-    navigate("/login", { replace: true });
+    navigate("/", { replace: true });
   };
 
   const openLogoutConfirm = () => {
@@ -109,8 +111,8 @@ export function DashboardLayout() {
       breadcrumbs.push({ label: matched.label, href: matched.href });
     }
 
-    // Handle detail routes like /invoices/:id, /purchase-orders/:id, /validation/:groupId
-    const detailMatch = path.match(/^\/(invoices|purchase-orders|validation)\/(.+)$/);
+    // Handle detail routes like /invoices/:id, /purchase-orders/:id, /validation/:groupId, /payments/:groupId, /acceptance/:groupId
+    const detailMatch = path.match(/^\/(invoices|purchase-orders|validation|payments|acceptance)\/(.+)$/);
     if (detailMatch) {
       const segment = detailMatch[1];
       const id = detailMatch[2];
@@ -118,6 +120,8 @@ export function DashboardLayout() {
         invoices: "Invoice",
         "purchase-orders": "PO",
         validation: "Group",
+        payments: "Payment",
+        acceptance: "Acceptance",
       };
       breadcrumbs.push({ label: `${detailLabels[segment]} #${id}` });
     }

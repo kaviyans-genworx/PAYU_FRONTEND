@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/hooks/useAppStore";
 import { extractPurchaseOrder, resetUpload } from "../slices/uploadSlice";
@@ -18,15 +18,90 @@ import {
   AlertCircle,
   AlertTriangle,
 } from "lucide-react";
-import { ExtractionProgress } from "./ExtractionProgress";
 
 const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg"];
 
+/* Cycling status messages shown during extraction */
+const EXTRACTION_STEPS = [
+  "Validating file…",
+  "Building extraction prompt…",
+  "Extracting PO fields with Gemini OCR…",
+  "Normalizing identifiers…",
+  "Validating extracted data…",
+  "Determining review status…",
+  "Storing document…",
+  "Finalizing…",
+];
+
+const STEP_STORAGE_KEY = "payu_extraction_step";
+
+/** Clear persisted animation step (call on completion or error). */
+export function clearExtractionStep() {
+  localStorage.removeItem(STEP_STORAGE_KEY);
+}
+
+function ExtractionLoader() {
+  const [stepIndex, setStepIndex] = useState(() => {
+    const saved = localStorage.getItem(STEP_STORAGE_KEY);
+    return saved ? Math.min(Number(saved), EXTRACTION_STEPS.length - 1) : 0;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(STEP_STORAGE_KEY, String(stepIndex));
+  }, [stepIndex]);
+
+  useEffect(() => {
+    const delays = [1000, 1000, 15000, 1000, 2000, 4000, 4000, 4000];
+    if (stepIndex >= EXTRACTION_STEPS.length - 1) return;
+    const timeout = setTimeout(() => {
+      setStepIndex((prev) => Math.min(prev + 1, EXTRACTION_STEPS.length - 1));
+    }, delays[stepIndex] ?? 3000);
+    return () => clearTimeout(timeout);
+  }, [stepIndex]);
+
+  return (
+    <div className="rounded-xl border bg-card p-8 shadow-sm flex flex-col items-center gap-6">
+      {/* Pulsing icon */}
+      <div className="relative">
+        <div className="absolute inset-0 rounded-full bg-primary/20 animate-ping" />
+        <div className="relative flex items-center justify-center h-16 w-16 rounded-full bg-primary/10">
+          <FileSpreadsheet className="h-8 w-8 text-primary" />
+        </div>
+      </div>
+
+      {/* Status text */}
+      <div className="text-center space-y-1">
+        <p className="text-sm font-medium text-foreground">
+          {EXTRACTION_STEPS[stepIndex]}
+        </p>
+        <p className="text-xs text-muted-foreground">
+          This may take a moment
+        </p>
+      </div>
+
+      {/* Progress bar animation */}
+      <div className="w-full h-1.5 rounded-full bg-muted overflow-hidden">
+        <div
+          className="h-full rounded-full bg-primary transition-all duration-1000 ease-out"
+          style={{
+            width: `${Math.min(((stepIndex + 1) / EXTRACTION_STEPS.length) * 100, 95)}%`,
+          }}
+        />
+      </div>
+
+      {/* Step counter */}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <Loader2 className="h-3 w-3 animate-spin" />
+        Step {stepIndex + 1} of {EXTRACTION_STEPS.length}
+      </div>
+    </div>
+  );
+}
 
 export function UploadPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { loading, error, result, currentStep, events } = useAppSelector((s) => s.upload);
+  const { loading, error, result } = useAppSelector((s) => s.upload);
 
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
@@ -79,9 +154,7 @@ export function UploadPage() {
     if (inputRef.current) inputRef.current.value = "";
   };
 
-
-  const progressSteps = events.map((event) => event.step).filter((step): step is string => !!step);
-
+  /* ---- Loading state: show extraction animation ---- */
   if (loading) {
     return (
       <div className="max-w-md mx-auto flex flex-col items-center pt-12">
@@ -99,12 +172,13 @@ export function UploadPage() {
           </div>
         )}
         <div className="w-full">
-          <ExtractionProgress isActive currentStep={currentStep} steps={progressSteps} />
+          <ExtractionLoader />
         </div>
       </div>
     );
   }
 
+  /* ---- Default: upload form ---- */
   return (
     <div className="space-y-8 max-w-4xl mx-auto">
       <div>
@@ -204,18 +278,23 @@ export function UploadPage() {
       </Card>
 
       {error && (
-        <Card className="border-destructive/50 shadow-sm">
+        <Card className={error.includes("longer than expected") ? "border-amber-400/50 shadow-sm bg-amber-50/50" : "border-destructive/50 shadow-sm"}>
           <CardContent className="flex items-start gap-3 pt-6">
-            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            {error.includes("longer than expected") ? (
+              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            ) : (
+              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+            )}
             <div>
-              <p className="text-sm font-medium text-destructive">Extraction Failed</p>
-              <p className="text-sm text-muted-foreground mt-1">{error}</p>
+              <p className={`text-sm font-medium ${error.includes("longer than expected") ? "text-amber-800" : "text-destructive"}`}>
+                {error.includes("longer than expected") ? "Extraction Processing Delayed" : "Extraction Failed"}
+              </p>
+              <p className={`text-sm mt-1 ${error.includes("longer than expected") ? "text-amber-800/80 leading-relaxed" : "text-muted-foreground"}`}>{error}</p>
             </div>
           </CardContent>
         </Card>
       )}
-
-
     </div>
   );
 }
+

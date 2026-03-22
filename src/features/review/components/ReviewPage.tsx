@@ -38,6 +38,66 @@ interface LineItemForm {
   total_price: string;
 }
 
+function normalizeErrorDetail(detail: unknown): string | null {
+  if (typeof detail === "string" && detail.trim()) {
+    return detail;
+  }
+
+  if (Array.isArray(detail)) {
+    const messages = detail
+      .map((entry) => {
+        if (typeof entry === "string") {
+          return entry;
+        }
+
+        if (entry && typeof entry === "object") {
+          const record = entry as Record<string, unknown>;
+          const msg = typeof record.msg === "string" ? record.msg : "Validation error";
+          const locValue = record.loc;
+          const loc = Array.isArray(locValue)
+            ? locValue.map(String).join(".")
+            : typeof locValue === "string"
+              ? locValue
+              : "";
+          return loc ? `${loc}: ${msg}` : msg;
+        }
+
+        return null;
+      })
+      .filter((msg): msg is string => Boolean(msg && msg.trim()));
+
+    return messages.length ? messages.join("; ") : null;
+  }
+
+  if (detail && typeof detail === "object") {
+    const record = detail as Record<string, unknown>;
+    if (typeof record.msg === "string" && record.msg.trim()) {
+      return record.msg;
+    }
+    try {
+      return JSON.stringify(detail);
+    } catch {
+      return "Validation failed";
+    }
+  }
+
+  return null;
+}
+
+function getErrorMessage(err: unknown, fallback: string): string {
+  const axiosErr = err as {
+    response?: { data?: { detail?: unknown } };
+    message?: string;
+  };
+
+  const detailMessage = normalizeErrorDetail(axiosErr.response?.data?.detail);
+  if (detailMessage) {
+    return detailMessage;
+  }
+
+  return axiosErr.message ?? fallback;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Single document review form (rendered per tab)                    */
 /* ------------------------------------------------------------------ */
@@ -368,15 +428,7 @@ function DocumentReviewForm({
 
       onSubmitted();
     } catch (err: unknown) {
-      const axiosErr = err as {
-        response?: { data?: { detail?: string } };
-        message?: string;
-      };
-      setSubmitError(
-        axiosErr.response?.data?.detail ??
-          axiosErr.message ??
-          "Submission failed",
-      );
+      setSubmitError(getErrorMessage(err, "Submission failed"));
     } finally {
       setSubmitting(false);
     }
@@ -395,15 +447,7 @@ function DocumentReviewForm({
       setShowDeleteConfirm(false);
       onDeleted(response.message || "Purchase Order deleted successfully");
     } catch (err: unknown) {
-      const axiosErr = err as {
-        response?: { data?: { detail?: string } };
-        message?: string;
-      };
-      setDeleteError(
-        axiosErr.response?.data?.detail ??
-          axiosErr.message ??
-          "Failed to delete purchase order",
-      );
+      setDeleteError(getErrorMessage(err, "Failed to delete purchase order"));
     } finally {
       setDeleting(false);
     }
@@ -412,7 +456,7 @@ function DocumentReviewForm({
   return (
     <>
     <div className="space-y-4">
-      {score ? (
+      {/* {score ? (
         <div className="flex items-center gap-2 justify-end">
           <span
             className={`text-lg font-bold ${
@@ -430,7 +474,7 @@ function DocumentReviewForm({
           <div className="h-6 w-12 rounded bg-muted" />
           <div className="h-5 w-24 rounded-full bg-muted" />
         </div>
-      )}
+      )} */}
 
       {submitError && (
         <div className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/5 px-4 py-3">

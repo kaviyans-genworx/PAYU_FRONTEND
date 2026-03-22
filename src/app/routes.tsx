@@ -1,9 +1,10 @@
 // import React from "react";
-import { createBrowserRouter, Navigate } from "react-router-dom";
+import { createBrowserRouter } from "react-router-dom";
 
 import { AuthLayout } from "@/layouts/AuthLayout";
 import { DashboardLayout } from "@/layouts/DashboardLayout";
 import { ProtectedRoute } from "@/components/common/ProtectedRoute";
+import { LandingPage } from "@/features/landing/components/LandingPage";
 import { AdminCreateUserPage } from "@/features/auth/components/AdminCreateUserPage";
 import { AdminUserManagementPage } from "@/features/auth/components/AdminUserManagementPage";
 import { ChangePasswordPage } from "@/features/auth/components/ChangePasswordPage";
@@ -18,11 +19,16 @@ import {
   ValidationGroupDetailPage,
   ValidationMailPage,
 } from "@/features/validation";
+import {
+  AcceptancePage,
+  PaymentsPage,
+  PaymentDetailPage,
+} from "@/features/payments";
 
 export const router = createBrowserRouter([
   {
     path: "/",
-    element: <Navigate to="/login" replace />,
+    element: <LandingPage />,
   },
   {
     element: <AuthLayout />,
@@ -90,6 +96,18 @@ export const router = createBrowserRouter([
           {
             path: "validation/:groupId/send-mail",
             element: <ValidationMailPage />,
+          },
+          {
+            path: "acceptance/:groupId",
+            element: <AcceptancePage />,
+          },
+          {
+            path: "payments",
+            element: <PaymentsPage />,
+          },
+          {
+            path: "payments/:groupId",
+            element: <PaymentDetailPage />,
           },
         ],
       },

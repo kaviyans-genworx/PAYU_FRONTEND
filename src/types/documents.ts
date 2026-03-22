@@ -255,6 +255,7 @@ export interface ValidationResultsOut {
   mapped_items: MappedItemPair[];
   ai_summary?: string;
   ai_suggestions: string[];
+  accepted_for_payment: boolean;
 }
 
 export interface DiscrepancyMailDraft {
@@ -281,4 +282,53 @@ export interface DiscrepancyMailSendResponse {
   invoice_count: number;
   po_count: number;
   discrepancy_count: number;
+}
+
+// ── Payment types ────────────────────────────────────────────
+
+export interface AcceptForPaymentResponse {
+  message: string;
+  group_id: number;
+  validation_status: string;
+  match_status: string;
+  accepted_for_payment: boolean;
+}
+
+export interface PaymentSummary {
+  group_id: number;
+  invoice_numbers: string[];
+  po_numbers: string[];
+  vendor_name?: string | null;
+  total_amount?: number | null;
+  validation_status?: string | null;
+  match_status?: string | null;
+  payment_status?: string | null;
+  accepted_at?: string | null;
+}
+
+export interface PaymentVendorBrief {
+  id: number;
+  vendor_name?: string | null;
+  vendor_email?: string | null;
+  vendor_phone?: string | null;
+  vendor_address?: string | null;
+  gst_number?: string | null;
+}
+
+export interface PaymentDetail {
+  group_id: number;
+  invoices: InvoiceBrief[];
+  pos: POBrief[];
+  vendor?: PaymentVendorBrief | null;
+  total_amount?: number | null;
+  validation_status?: string | null;
+  match_status?: string | null;
+  payment_status?: string | null;
+  accepted_for_payment: boolean;
+}
+
+export interface PayNowResponse {
+  message: string;
+  group_id: number;
+  payment_status: string;
 }

@@ -16,6 +16,64 @@ function joinOrFallback(values: string[]): string {
   return values.length > 0 ? values.join(", ") : "—";
 }
 
+function getErrorMessage(error: unknown, fallback: string): string {
+  const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+
+  if (typeof detail === "string" && detail.trim()) {
+    return detail;
+  }
+
+  if (Array.isArray(detail) && detail.length > 0) {
+    const parsed = detail
+      .map((item) => {                                                                                                    
+        if (typeof item === "string") {
+          return item;
+        }
+
+        if (item && typeof item === "object") {
+          const record = item as { msg?: unknown; loc?: unknown };
+          const message = typeof record.msg === "string" ? record.msg : null;
+          const location = Array.isArray(record.loc)
+            ? record.loc.map((segment) => String(segment)).join(".")
+            : null;
+
+          if (message && location) {
+            return `${location}: ${message}`;
+          }
+
+          if (message) {
+            return message;
+          }
+
+          return JSON.stringify(item);
+        }
+
+        return String(item);
+      })
+      .filter(Boolean)
+      .join("; ");
+
+    if (parsed.trim()) {
+      return parsed;
+    }
+  }
+
+  if (detail && typeof detail === "object") {
+    const message = (detail as { msg?: unknown }).msg;
+    if (typeof message === "string" && message.trim()) {
+      return message;
+    }
+
+    return JSON.stringify(detail);
+  }
+
+  if (error instanceof Error && error.message.trim()) {
+    return error.message;
+  }
+
+  return fallback;
+}
+
 export function ValidationMailPage() {
   const { groupId } = useParams<{ groupId: string }>();
   const navigate = useNavigate();
@@ -51,10 +109,7 @@ export function ValidationMailPage() {
           body: data.body,
         });
       } catch (err: unknown) {
-        const message =
-          (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ??
-          (err instanceof Error ? err.message : "Failed to load mail draft");
-        setError(message);
+        setError(getErrorMessage(err, "Failed to load mail draft"));
       } finally {
         setLoading(false);
       }
@@ -82,12 +137,9 @@ export function ValidationMailPage() {
 
     try {
       const response = await validationService.sendDiscrepancyMail(numericGroupId, form);
-      setSuccess(response.message);
+      setSuccess(typeof response.message === "string" ? response.message : "Mail sent successfully");
     } catch (err: unknown) {
-      const message =
-        (err as { response?: { data?: { detail?: string } } }).response?.data?.detail ??
-        (err instanceof Error ? err.message : "Failed to send mail");
-      setError(message);
+      setError(getErrorMessage(err, "Failed to send mail"));
     } finally {
       setSending(false);
     }

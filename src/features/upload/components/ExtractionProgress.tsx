@@ -43,13 +43,13 @@ export function ExtractionProgress({ isActive, currentStep, steps }: ExtractionP
         PO Extraction Progress
       </h3>
       <p className="text-xs text-muted-foreground mb-5">
-        Live updates from backend processing.
+        Processing your document.
       </p>
 
       {uniqueSteps.length === 0 ? (
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="h-4 w-4 animate-spin" />
-          Waiting for extraction worker...
+          Starting extraction...
         </div>
       ) : (
         <div className="space-y-3">

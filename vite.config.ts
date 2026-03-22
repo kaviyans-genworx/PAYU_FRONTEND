@@ -14,9 +14,10 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        target: "https://payu-auth-backend-717740758627.us-east1.run.app",
         changeOrigin: true,
       },
     },
   },
 });
+
