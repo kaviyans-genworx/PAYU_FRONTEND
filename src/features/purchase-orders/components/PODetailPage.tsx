@@ -1,7 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useAppDispatch } from "@/hooks/useAppStore";
-import { addReviewItem } from "@/features/review/slices/reviewSlice";
 import { poService } from "../services/poService";
 import type { PurchaseOrderOut } from "@/types/documents";
 import { Button } from "@/components/ui/button";
@@ -49,7 +47,6 @@ function statusVariant(
 export function PODetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const [po, setPO] = useState<PurchaseOrderOut | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -63,33 +60,9 @@ export function PODetailPage() {
       .getPurchaseOrder(Number(id))
       .then((record) => {
         if (record.status?.toUpperCase() === "PENDING") {
-          dispatch(
-            addReviewItem({
-              document_type: "po",
-              extracted_data: {
-                po_number: record.po_number,
-                currency: record.currency,
-                po_date: record.po_date,
-                subtotal: record.subtotal,
-                tax_amount: record.tax_amount,
-                discount_amount: record.discount_amount,
-                total_amount: record.total_amount,
-                line_items: record.line_items?.map((li, idx) => ({
-                  line_number: li.line_number ?? idx + 1,
-                  item_code: li.item_code,
-                  item_description: li.item_description,
-                  quantity: li.quantity,
-                  unit_price: li.unit_price,
-                  total_price: li.total_price,
-                })),
-              },
-              stored_record: { id: record.id, po_number: record.po_number },
-              file_url: record.file_url,
-            }),
-          );
           setRedirecting(true);
           setLoading(false);
-          setTimeout(() => navigate("/review", { replace: true }), 2000);
+          setTimeout(() => navigate(`/review?poId=${record.id}`, { replace: true }), 2000);
           return;
         }
         setPO(record);
@@ -104,7 +77,7 @@ export function PODetailPage() {
         setError(msg);
       })
       .finally(() => setLoading(false));
-  }, [id, dispatch, navigate]);
+  }, [id, navigate]);
 
   if (redirecting) {
     return (
@@ -196,6 +169,8 @@ export function PODetailPage() {
             </CardHeader>
             <CardContent className="divide-y">
               <InfoRow label="PO Number" value={po.po_number} />
+              <InfoRow label="Status" value={po.status} />
+              <InfoRow label="Vendor ID" value={po.vendor_id} />
               <InfoRow label="Currency" value={po.currency} />
               <InfoRow
                 label="PO Date"
@@ -213,6 +188,29 @@ export function PODetailPage() {
                     : undefined
                 }
               />
+              <InfoRow
+                label="Updated"
+                value={
+                  po.updated_at
+                    ? new Date(po.updated_at).toLocaleString()
+                    : undefined
+                }
+              />
+            </CardContent>
+          </Card>
+
+          <Card className="border shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                Vendor Details
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="divide-y">
+              <InfoRow label="Vendor Name" value={po.vendor?.vendor_name} />
+              <InfoRow label="Email" value={po.vendor?.vendor_email} />
+              <InfoRow label="Phone" value={po.vendor?.vendor_phone} />
+              <InfoRow label="Address" value={po.vendor?.vendor_address} />
+              <InfoRow label="Tax / GST ID" value={po.vendor?.gst_number} />
             </CardContent>
           </Card>
 

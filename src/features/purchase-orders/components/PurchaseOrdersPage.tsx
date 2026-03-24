@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { poService } from "../services/poService";
 import type { PurchaseOrderOut } from "@/types/documents";
 import { Badge } from "@/components/ui/badge";
@@ -38,9 +38,11 @@ type SortDir = "asc" | "desc";
 
 export function PurchaseOrdersPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [orders, setOrders] = useState<PurchaseOrderOut[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Search, filter, sort state
   const [searchQuery, setSearchQuery] = useState("");
@@ -123,6 +125,17 @@ export function PurchaseOrdersPage() {
     void fetchOrders();
   }, []);
 
+  useEffect(() => {
+    const message = (location.state as { successMessage?: string } | null)
+      ?.successMessage;
+    if (!message) {
+      return;
+    }
+
+    setSuccessMessage(message);
+    navigate(location.pathname, { replace: true });
+  }, [location.pathname, location.state, navigate]);
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -190,6 +203,29 @@ export function PurchaseOrdersPage() {
         </div>
       )}
 
+      {successMessage && (
+        <div className="flex items-start justify-between gap-3 rounded-lg border border-emerald-500/40 bg-emerald-50 px-4 py-3">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-emerald-600 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-emerald-800">
+                Success
+              </p>
+              <p className="text-sm text-emerald-700 mt-0.5">
+                {successMessage}
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSuccessMessage(null)}
+          >
+            Dismiss
+          </Button>
+        </div>
+      )}
+
       {loading ? (
         <div className="flex justify-center py-16">
           <LoadingSpinner size={32} />
@@ -248,10 +284,20 @@ export function PurchaseOrdersPage() {
                       role="button"
                       tabIndex={0}
                       className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
-                      onClick={() => navigate(`/purchase-orders/${po.id}`)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
+                          if (po.status === "PENDING") {
+                            navigate(`/review?poId=${po.id}`);
+                          } else {
+                            navigate(`/purchase-orders/${po.id}`);
+                          }
+                        }
+                      }}
+                      onClick={() => {
+                        if (po.status === "PENDING") {
+                          navigate(`/review?poId=${po.id}`);
+                        } else {
                           navigate(`/purchase-orders/${po.id}`);
                         }
                       }}

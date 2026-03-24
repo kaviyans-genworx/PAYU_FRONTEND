@@ -1,7 +1,7 @@
 import  { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/hooks/useAppStore";
-import { loginUser, clearError } from "@/features/auth";
+import { clearError, fetchCurrentUser, loginUser } from "@/features/auth";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +32,19 @@ export function LoginForm() {
     const result = await dispatch(loginUser({ email, password }));
 
     if (loginUser.fulfilled.match(result)) {
+      const currentUser = await dispatch(fetchCurrentUser());
+      if (fetchCurrentUser.fulfilled.match(currentUser)) {
+        if (currentUser.payload.is_first_login) {
+          navigate("/change-password", { replace: true });
+          return;
+        }
+
+        if (currentUser.payload.role_id === 1) {
+          navigate("/admin/users", { replace: true });
+          return;
+        }
+      }
+
       navigate("/dashboard", { replace: true });
     }
   };
@@ -139,15 +152,8 @@ export function LoginForm() {
                   </>
                 )}
               </Button>
-              {/* Link to sign up */}
               <p className="text-center text-sm text-muted-foreground">
-                Don't have an account?{" "}
-                <Link
-                  to="/signup"
-                  className="font-medium text-primary hover:underline"
-                >
-                  Sign up
-                </Link>
+                Accounts are created by admins.
               </p>
             </form>
           </CardContent>

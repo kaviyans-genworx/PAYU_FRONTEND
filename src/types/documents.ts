@@ -44,10 +44,22 @@ export interface InvoiceItemOut {
   created_at?: string;
 }
 
+export interface VendorOut {
+  id: number;
+  vendor_name?: string | null;
+  vendor_email?: string | null;
+  vendor_phone?: string | null;
+  vendor_address?: string | null;
+  gst_number?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
 export interface InvoiceOut {
   id: number;
   invoice_number?: string;
   vendor_id?: number;
+  vendor?: VendorOut | null;
   currency?: string;
   due_date?: string;
   subtotal?: number;
@@ -79,6 +91,7 @@ export interface PurchaseOrderOut {
   id: number;
   po_number?: string;
   vendor_id: number;
+  vendor?: VendorOut | null;
   currency?: string;
   po_date?: string;
   subtotal?: number;
@@ -242,4 +255,80 @@ export interface ValidationResultsOut {
   mapped_items: MappedItemPair[];
   ai_summary?: string;
   ai_suggestions: string[];
+  accepted_for_payment: boolean;
+}
+
+export interface DiscrepancyMailDraft {
+  group_id: number;
+  vendor_name?: string | null;
+  to_email: string;
+  subject: string;
+  body: string;
+  invoice_numbers: string[];
+  po_numbers: string[];
+  discrepancy_count: number;
+  attachment_count: number;
+}
+
+export interface DiscrepancyMailSendPayload {
+  to_email: string;
+  subject: string;
+  body: string;
+}
+
+export interface DiscrepancyMailSendResponse {
+  message: string;
+  group_id: number;
+  invoice_count: number;
+  po_count: number;
+  discrepancy_count: number;
+}
+
+// ── Payment types ────────────────────────────────────────────
+
+export interface AcceptForPaymentResponse {
+  message: string;
+  group_id: number;
+  validation_status: string;
+  match_status: string;
+  accepted_for_payment: boolean;
+}
+
+export interface PaymentSummary {
+  group_id: number;
+  invoice_numbers: string[];
+  po_numbers: string[];
+  vendor_name?: string | null;
+  total_amount?: number | null;
+  validation_status?: string | null;
+  match_status?: string | null;
+  payment_status?: string | null;
+  accepted_at?: string | null;
+}
+
+export interface PaymentVendorBrief {
+  id: number;
+  vendor_name?: string | null;
+  vendor_email?: string | null;
+  vendor_phone?: string | null;
+  vendor_address?: string | null;
+  gst_number?: string | null;
+}
+
+export interface PaymentDetail {
+  group_id: number;
+  invoices: InvoiceBrief[];
+  pos: POBrief[];
+  vendor?: PaymentVendorBrief | null;
+  total_amount?: number | null;
+  validation_status?: string | null;
+  match_status?: string | null;
+  payment_status?: string | null;
+  accepted_for_payment: boolean;
+}
+
+export interface PayNowResponse {
+  message: string;
+  group_id: number;
+  payment_status: string;
 }

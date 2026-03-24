@@ -28,6 +28,7 @@ import {
   ChevronDown,
   Users,
   Hash,
+  Mail,
 } from "lucide-react";
 
 /* ─── Helpers ──────────────────────────────────────────────── */
@@ -361,11 +362,10 @@ function MappedItemsTable({ mappedItems }: { mappedItems: MappedItemPair[] }) {
                 return (
                   <tr
                     key={m.link_id}
-                    className={`border-b last:border-0 transition-colors ${
-                      allMatch
-                        ? "hover:bg-emerald-50/50 dark:hover:bg-emerald-950/10"
-                        : "bg-amber-50/30 dark:bg-amber-950/10 hover:bg-amber-50/50"
-                    }`}
+                    className={`border-b last:border-0 transition-colors ${allMatch
+                      ? "hover:bg-emerald-50/50 dark:hover:bg-emerald-950/10"
+                      : "bg-amber-50/30 dark:bg-amber-950/10 hover:bg-amber-50/50"
+                      }`}
                   >
                     {/* Invoice side */}
                     <td className="px-4 py-2.5 font-medium">
@@ -491,13 +491,12 @@ function DocumentTotalsCard({ data }: { data: ValidationResultsOut }) {
                 return (
                   <tr
                     key={row.label}
-                    className={`border-b last:border-0 transition-colors ${
-                      row.isBold
-                        ? match
-                          ? "bg-emerald-50/40 dark:bg-emerald-950/10"
-                          : "bg-red-50/40 dark:bg-red-950/10"
-                        : "hover:bg-muted/30"
-                    }`}
+                    className={`border-b last:border-0 transition-colors ${row.isBold
+                      ? match
+                        ? "bg-emerald-50/40 dark:bg-emerald-950/10"
+                        : "bg-red-50/40 dark:bg-red-950/10"
+                      : "hover:bg-muted/30"
+                      }`}
                   >
                     <td className={`px-5 py-3 ${row.isBold ? "font-bold text-foreground" : "font-medium text-muted-foreground"}`}>
                       {row.label}
@@ -508,9 +507,8 @@ function DocumentTotalsCard({ data }: { data: ValidationResultsOut }) {
                     <td className={`px-5 py-3 text-right font-mono ${row.isBold ? "font-bold text-base" : ""}`}>
                       {fmtNum(row.poVal)}
                     </td>
-                    <td className={`px-5 py-3 text-right font-mono ${
-                      match ? "text-muted-foreground" : "text-red-600 dark:text-red-400 font-semibold"
-                    }`}>
+                    <td className={`px-5 py-3 text-right font-mono ${match ? "text-muted-foreground" : "text-red-600 dark:text-red-400 font-semibold"
+                      }`}>
                       {match ? "—" : (diff > 0 ? "+" : "") + fmtNum(diff)}
                     </td>
                     <td className="px-4 py-3 text-center">
@@ -699,7 +697,7 @@ function DiscrepancyList({ discrepancies }: { discrepancies: DiscrepancyOut[] })
               className={`rounded-xl border ${cfg.border} overflow-hidden bg-white dark:bg-card transition-all duration-200 ${isExpanded ? 'shadow-md ring-1 ring-black/5 dark:ring-white/10' : 'hover:shadow-sm'}`}
             >
               {/* Summary Header (Always Visible) */}
-              <div 
+              <div
                 className={`p-4 sm:p-5 flex flex-col sm:flex-row sm:items-center gap-4 cursor-pointer transition-colors ${cfg.bg} hover:bg-black/[0.02] dark:hover:bg-white/[0.02]`}
                 role="button"
                 tabIndex={0}
@@ -721,7 +719,7 @@ function DiscrepancyList({ discrepancies }: { discrepancies: DiscrepancyOut[] })
                     {d.severity}
                   </Badge>
                 </div>
-                
+
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-col gap-1">
                     <span className={`text-base font-bold tracking-tight ${cfg.color}`}>
@@ -735,47 +733,47 @@ function DiscrepancyList({ discrepancies }: { discrepancies: DiscrepancyOut[] })
 
                 <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 mt-2 sm:mt-0">
                   <div className="flex items-center gap-4 text-sm whitespace-nowrap hidden lg:flex">
-                     {d.invoice_value && (
-                        <div className="flex flex-col">
-                          <span className="text-[10px] uppercase text-muted-foreground font-semibold">Invoice</span>
-                          <span className="font-mono font-medium">{d.invoice_value}</span>
-                        </div>
-                     )}
-                     {d.po_value && (
-                        <div className="flex flex-col">
-                          <span className="text-[10px] uppercase text-muted-foreground font-semibold">PO</span>
-                          <span className="font-mono font-medium">{d.po_value}</span>
-                        </div>
-                     )}
+                    {d.invoice_value && (
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase text-muted-foreground font-semibold">Invoice</span>
+                        <span className="font-mono font-medium">{d.invoice_value}</span>
+                      </div>
+                    )}
+                    {d.po_value && (
+                      <div className="flex flex-col">
+                        <span className="text-[10px] uppercase text-muted-foreground font-semibold">PO</span>
+                        <span className="font-mono font-medium">{d.po_value}</span>
+                      </div>
+                    )}
                   </div>
                   <div className="p-1 rounded-full hover:bg-black/5 dark:hover:bg-white/10 transition-colors">
-                    <svg 
-                      xmlns="http://www.w3.org/2000/svg" 
-                      width="20" height="20" 
-                      viewBox="0 0 24 24" fill="none" 
-                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" 
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="20" height="20"
+                      viewBox="0 0 24 24" fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                       className={`text-muted-foreground transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`}
                     >
-                      <path d="m6 9 6 6 6-6"/>
+                      <path d="m6 9 6 6 6-6" />
                     </svg>
                   </div>
                 </div>
               </div>
 
               {/* Expanded Details Section */}
-              <div 
+              <div
                 id={`discrepancy-panel-${idx}`}
                 className={`grid transition-all duration-300 ease-in-out ${isExpanded ? 'grid-rows-[1fr] opacity-100 border-t border-border/50' : 'grid-rows-[0fr] opacity-0'}`}
               >
                 <div className="overflow-hidden">
                   <div className="p-4 sm:p-5 space-y-6">
-                    
+
                     {/* Message (Full Text) */}
                     <div className="space-y-2">
-                       <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Error Details</h4>
-                       <p className="text-sm font-medium leading-relaxed text-foreground">
-                         {d.message}
-                       </p>
+                      <h4 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Error Details</h4>
+                      <p className="text-sm font-medium leading-relaxed text-foreground">
+                        {d.message}
+                      </p>
                     </div>
 
                     {/* Side-by-side Comparison */}
@@ -794,7 +792,7 @@ function DiscrepancyList({ discrepancies }: { discrepancies: DiscrepancyOut[] })
                               {d.invoice_value || "—"}
                             </div>
                           </div>
-                          
+
                           {/* PO Card */}
                           <div className="rounded-lg border bg-slate-50/50 dark:bg-slate-900/20 p-4 relative overflow-hidden">
                             <div className="absolute top-0 left-0 w-1 h-full bg-slate-400/50"></div>
@@ -824,7 +822,7 @@ function DiscrepancyList({ discrepancies }: { discrepancies: DiscrepancyOut[] })
                               stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
                               className="ml-auto transition-transform duration-200 group-open:rotate-180"
                             >
-                              <path d="m6 9 6 6 6-6"/>
+                              <path d="m6 9 6 6 6-6" />
                             </svg>
                           </summary>
                           <div className="px-4 pb-4">
@@ -982,6 +980,21 @@ export function ValidationGroupDetailPage() {
             Group #{data.group_id} — detailed validation report
           </p>
         </div>
+        <div className="ml-auto flex items-center gap-2">
+          {!data.accepted_for_payment && (
+            <Button
+              variant="outline"
+              onClick={() => navigate(`/acceptance/${data.group_id}`)}
+            >
+              <CheckCircle2 className="h-4 w-4" />
+              Accept for Payment
+            </Button>
+          )}
+          <Button onClick={() => navigate(`/validation/${data.group_id}/send-mail`)}>
+            <Mail className="h-4 w-4" />
+            Send Mail
+          </Button>
+        </div>
       </div>
 
       {/* Section quick-nav */}
@@ -1051,9 +1064,8 @@ export function ValidationGroupDetailPage() {
       {/* Back to top floating button */}
       <button
         onClick={scrollToTop}
-        className={`fixed bottom-6 right-6 z-40 flex items-center justify-center h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-lg transition-all duration-200 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
-          showBackToTop ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
-        }`}
+        className={`fixed bottom-6 right-6 z-40 flex items-center justify-center h-10 w-10 rounded-full bg-primary text-primary-foreground shadow-lg transition-all duration-200 hover:bg-primary/90 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${showBackToTop ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4 pointer-events-none"
+          }`}
         aria-label="Back to top"
       >
         <ArrowUp className="h-4 w-4" />
