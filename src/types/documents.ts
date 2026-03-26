@@ -279,9 +279,6 @@ export interface DiscrepancyMailSendPayload {
 export interface DiscrepancyMailSendResponse {
   message: string;
   group_id: number;
-  invoice_count: number;
-  po_count: number;
-  discrepancy_count: number;
 }
 
 // ── Payment types ────────────────────────────────────────────

@@ -19,6 +19,7 @@ import {
   Users,
   UserPlus,
   CreditCard,
+  BarChart3,
 } from "lucide-react";
 
 const ADMIN_ROLE_ID = 1;
@@ -33,6 +34,7 @@ const userNavItems = [
 ];
 
 const adminNavItems = [
+  { label: "Admin Dashboard", icon: BarChart3, href: "/admin/dashboard" },
   { label: "User Management", icon: Users, href: "/admin/users" },
   { label: "Create User", icon: UserPlus, href: "/admin/users/create" },
 ];

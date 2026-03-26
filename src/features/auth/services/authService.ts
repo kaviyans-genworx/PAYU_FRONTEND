@@ -1,4 +1,4 @@
-import axiosInstance from "@/lib/axios";
+import { auth_axios_instance as axiosInstance } from "@/lib/axios";
 import { ENDPOINTS } from "@/config/env";
 import type {
   AuthResponse,

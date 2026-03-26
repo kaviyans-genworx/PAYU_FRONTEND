@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, Link } from "react-router-dom";
 import { validationService } from "../services/validationService";
 import type { ValidationResultsOut, DiscrepancyOut, MergedItem, MappedItemPair, InvoiceBrief, POBrief } from "@/types/documents";
 import { Badge } from "@/components/ui/badge";
@@ -21,7 +21,6 @@ import {
   XCircle,
   AlertTriangle,
   Info,
-  Lightbulb,
   ArrowRightLeft,
   Link2,
   ArrowUp,
@@ -29,6 +28,7 @@ import {
   Users,
   Hash,
   Mail,
+  Sparkles,
 } from "lucide-react";
 
 /* ─── Helpers ──────────────────────────────────────────────── */
@@ -562,9 +562,10 @@ function DocumentMappingCard({
                 <p className="text-sm text-muted-foreground">No invoices in this group.</p>
               ) : (
                 invoices.map((inv) => (
-                  <div
+                  <Link
                     key={inv.id}
-                    className="rounded-lg border bg-blue-50/30 dark:bg-blue-950/10 border-blue-200/60 dark:border-blue-800/40 p-3 transition-colors hover:bg-blue-50/50 dark:hover:bg-blue-950/20"
+                    to={`/invoices/${inv.id}`}
+                    className="block rounded-lg border bg-blue-50/30 dark:bg-blue-950/10 border-blue-200/60 dark:border-blue-800/40 p-3 transition-colors hover:bg-blue-100/50 dark:hover:bg-blue-950/30 hover:shadow-sm"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2 min-w-0">
@@ -586,7 +587,7 @@ function DocumentMappingCard({
                         </span>
                       )}
                     </div>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>
@@ -603,9 +604,10 @@ function DocumentMappingCard({
                 <p className="text-sm text-muted-foreground">No purchase orders in this group.</p>
               ) : (
                 pos.map((po) => (
-                  <div
+                  <Link
                     key={po.id}
-                    className="rounded-lg border bg-indigo-50/30 dark:bg-indigo-950/10 border-indigo-200/60 dark:border-indigo-800/40 p-3 transition-colors hover:bg-indigo-50/50 dark:hover:bg-indigo-950/20"
+                    to={`/purchase-orders/${po.id}`}
+                    className="block rounded-lg border bg-indigo-50/30 dark:bg-indigo-950/10 border-indigo-200/60 dark:border-indigo-800/40 p-3 transition-colors hover:bg-indigo-100/50 dark:hover:bg-indigo-950/30 hover:shadow-sm"
                   >
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex items-center gap-2 min-w-0">
@@ -627,7 +629,7 @@ function DocumentMappingCard({
                         </span>
                       )}
                     </div>
-                  </div>
+                  </Link>
                 ))
               )}
             </div>
@@ -640,7 +642,13 @@ function DocumentMappingCard({
 
 /* ─── Section 3: Discrepancy List ─────────────────────────── */
 
-function DiscrepancyList({ discrepancies }: { discrepancies: DiscrepancyOut[] }) {
+function DiscrepancyList({ 
+  discrepancies
+}: { 
+  discrepancies: DiscrepancyOut[];
+  summary?: string | null;
+  suggestions?: string[];
+}) {
   const [expandedIndices, setExpandedIndices] = useState<Set<number>>(new Set());
 
   const toggleExpand = (index: number) => {
@@ -686,6 +694,30 @@ function DiscrepancyList({ discrepancies }: { discrepancies: DiscrepancyOut[] })
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* AI Overall Suggestions Header */}
+        {/* {(summary || (suggestions && suggestions.length > 0)) && (
+          <div className="mb-6 rounded-xl overflow-hidden border border-purple-200 dark:border-purple-800/60 bg-gradient-to-br from-purple-50 to-indigo-50/50 dark:from-purple-900/20 dark:to-indigo-900/10 shadow-sm relative">
+            <div className="absolute -top-4 -right-4 p-4 opacity-5 pointer-events-none">
+              <Sparkles className="w-32 h-32 text-purple-600 dark:text-purple-400" />
+            </div>
+            <div className="p-5 relative z-10 space-y-4">
+              {suggestions && suggestions.length > 0 && (
+                <div className="space-y-3 mt-4">
+                  <h4 className="text-xs font-bold uppercase tracking-wider text-purple-600 dark:text-purple-400 opacity-80">Suggested Actions</h4>
+                  {suggestions.map((s, idx) => (
+                    <div key={idx} className="flex items-start gap-3 text-sm">
+                      <div className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-purple-200 dark:bg-purple-800/50 text-purple-700 dark:text-purple-300 text-[10px] font-bold">
+                        {idx + 1}
+                      </div>
+                      <span className="text-foreground/90 leading-relaxed pt-0.5">{s}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )} */}
+
         {discrepancies.map((d, idx) => {
           const cfg = severityConfig(d.severity);
           const Icon = cfg.icon;
@@ -808,29 +840,20 @@ function DiscrepancyList({ discrepancies }: { discrepancies: DiscrepancyOut[] })
                       </div>
                     )}
 
-                    {/* AI Explanation — Collapsible */}
+                    {/* AI Explanation — Always Visible, styled as an AI Insight */}
                     {d.ai_explanation && (
-                      <div className="space-y-2">
-                        <details className="group rounded-lg bg-blue-50/40 dark:bg-blue-900/10 border border-blue-100/50 dark:border-blue-800/30 overflow-hidden">
-                          <summary className="flex items-center gap-1.5 cursor-pointer p-4 text-xs font-bold uppercase tracking-wider text-muted-foreground hover:text-foreground transition-colors select-none list-none [&::-webkit-details-marker]:hidden">
-                            <Lightbulb className="h-3.5 w-3.5 text-blue-500" />
-                            AI Analysis & Suggestion
-                            <svg
-                              xmlns="http://www.w3.org/2000/svg"
-                              width="14" height="14"
-                              viewBox="0 0 24 24" fill="none"
-                              stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
-                              className="ml-auto transition-transform duration-200 group-open:rotate-180"
-                            >
-                              <path d="m6 9 6 6 6-6" />
-                            </svg>
-                          </summary>
-                          <div className="px-4 pb-4">
-                            <p className="text-sm text-blue-900 dark:text-blue-100 leading-relaxed whitespace-pre-wrap">
+                      <div className="space-y-2 mt-4">
+                        <div className="rounded-lg bg-gradient-to-br from-indigo-50/80 to-purple-50/50 dark:from-indigo-900/10 dark:to-purple-900/10 border border-indigo-100 dark:border-indigo-800/30 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] dark:shadow-[inset_0_1px_0_rgba(255,255,255,0.02)]">
+                          <div className="flex items-center gap-2 bg-indigo-100/50 dark:bg-indigo-900/30 px-4 py-2.5 border-b border-indigo-100 dark:border-indigo-800/30 backdrop-blur-sm">
+                            <Sparkles className="h-3.5 w-3.5 text-indigo-600 dark:text-indigo-400" />
+                            <span className="text-[11px] font-bold uppercase tracking-[0.1em] text-indigo-700 dark:text-indigo-400">AI Breakdown</span>
+                          </div>
+                          <div className="p-4">
+                            <p className="text-sm text-indigo-950/80 dark:text-indigo-200/90 leading-relaxed whitespace-pre-wrap">
                               {d.ai_explanation}
                             </p>
                           </div>
-                        </details>
+                        </div>
                       </div>
                     )}
 
@@ -845,50 +868,7 @@ function DiscrepancyList({ discrepancies }: { discrepancies: DiscrepancyOut[] })
   );
 }
 
-/* ─── Section 4: AI Suggestions Card ─────────────────────── */
 
-function AISuggestionsCard({
-  summary,
-  suggestions,
-}: {
-  summary?: string | null;
-  suggestions: string[];
-}) {
-  return (
-    <Card className="border shadow-sm bg-gradient-to-br from-blue-50/50 to-indigo-50/30 dark:from-blue-950/20 dark:to-indigo-950/10 border-blue-200 dark:border-blue-800">
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center gap-2 text-base text-blue-800 dark:text-blue-300">
-          <Lightbulb className="h-4 w-4" />
-          AI Suggestions
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {summary && (
-          <div className="rounded-lg bg-white/70 dark:bg-card/50 border border-blue-100 dark:border-blue-900 p-3">
-            <p className="text-sm text-foreground/80 leading-relaxed">{summary}</p>
-          </div>
-        )}
-        {suggestions.length > 0 && (
-          <ul className="space-y-2">
-            {suggestions.map((s, idx) => (
-              <li key={idx} className="flex items-start gap-2.5 text-sm">
-                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 text-[10px] font-bold">
-                  {idx + 1}
-                </span>
-                <span className="text-foreground/80 leading-relaxed">{s}</span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {!summary && suggestions.length === 0 && (
-          <p className="text-sm text-muted-foreground">No suggestions available.</p>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-/* ─── Main Page ────────────────────────────────────────────── */
 
 export function ValidationGroupDetailPage() {
   const { groupId } = useParams<{ groupId: string }>();
@@ -1005,8 +985,7 @@ export function ValidationGroupDetailPage() {
           { id: "vd-totals", label: "Financials" },
           { id: "vd-mapped", label: "Matched Pairs" },
           { id: "vd-unmatched", label: "Unmatched" },
-          { id: "vd-discrepancies", label: "Discrepancies" },
-          { id: "vd-suggestions", label: "AI Suggestions" },
+          { id: "vd-discrepancies", label: "Discrepancies & AI" },
         ].map((s) => (
           <button
             key={s.id}
@@ -1050,12 +1029,8 @@ export function ValidationGroupDetailPage() {
 
       {/* Section — Discrepancies */}
       <div id="vd-discrepancies">
-        <DiscrepancyList discrepancies={data.discrepancies} />
-      </div>
-
-      {/* Section — AI Suggestions */}
-      <div id="vd-suggestions">
-        <AISuggestionsCard
+        <DiscrepancyList 
+          discrepancies={data.discrepancies} 
           summary={data.ai_summary}
           suggestions={data.ai_suggestions}
         />

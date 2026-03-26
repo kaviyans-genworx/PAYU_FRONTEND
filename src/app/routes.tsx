@@ -7,6 +7,9 @@ import { ProtectedRoute } from "@/components/common/ProtectedRoute";
 import { LandingPage } from "@/features/landing/components/LandingPage";
 import { AdminCreateUserPage } from "@/features/auth/components/AdminCreateUserPage";
 import { AdminUserManagementPage } from "@/features/auth/components/AdminUserManagementPage";
+import {
+  AdminDashboardPage,
+} from "@/features/admin";
 import { ChangePasswordPage } from "@/features/auth/components/ChangePasswordPage";
 import { LoginPage } from "@/features/auth/components/LoginPage";
 import { DashboardPage } from "@/features/dashboard";
@@ -50,12 +53,21 @@ export const router = createBrowserRouter([
         element: <DashboardLayout />,
         children: [
           {
+            path: "admin/dashboard",
+            element: <AdminDashboardPage />,
+          },
+          {
             path: "admin/users",
             element: <AdminUserManagementPage />,
           },
           {
             path: "admin/users/create",
             element: <AdminCreateUserPage />,
+          },
+
+          {
+            path: "admin/invoices/:id",
+            element: <InvoiceDetailPage />,
           },
           {
             path: "dashboard",

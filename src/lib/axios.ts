@@ -1,7 +1,24 @@
 import axios from "axios";
 import { TOKEN_KEY } from "@/config/constants";
-import { CORE_API_BASE_URL , API_BASE_URL } from "@/config/env";
+import { CORE_API_BASE_URL, ENDPOINTS } from "@/config/env";
 
+// ── Auth axios instance (no baseURL — ENDPOINTS contain full paths) ──
+export const auth_axios_instance = axios.create({
+  withCredentials: true,
+});
+
+auth_axios_instance.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem(TOKEN_KEY);
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error),
+);
+
+// ── Core API axios instance (baseURL for /api routes) ──
 export const core_axios_intance = axios.create({
   baseURL: CORE_API_BASE_URL,
   withCredentials: true,
@@ -68,7 +85,7 @@ core_axios_intance.interceptors.response.use(
 
       try {
         const { data } = await axios.post(
-          `${API_BASE_URL}/auth/refresh`,
+          ENDPOINTS.AUTH.REFRESH,
           {},
           { withCredentials: true }
         );

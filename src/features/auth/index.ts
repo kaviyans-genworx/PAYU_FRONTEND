@@ -3,6 +3,7 @@ export {
 	loginUser,
 	logoutUser,
 	fetchCurrentUser,
+	refreshToken,
 	clearError,
 	resetAuth,
 } from "./slices/authSlice";

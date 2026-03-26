@@ -1,13 +1,13 @@
-# Build stage
+# ── Build stage ──────────────────────────────────────────
 FROM node:20 AS build
 
 WORKDIR /app
 
-ARG API_BASE_URL
-ENV API_BASE_URL=$API_BASE_URL
-
-ARG CORE_API_BASE_URL
-ENV CORE_API_BASE_URL=$CORE_API_BASE_URL
+# Vite requires VITE_ prefix for env vars to be exposed to client code.
+ARG VITE_API_BASE_URL=/auth/api/v1
+ARG VITE_CORE_API_BASE_URL=/api
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_CORE_API_BASE_URL=$VITE_CORE_API_BASE_URL
 
 COPY package*.json ./
 RUN npm install
@@ -15,14 +15,16 @@ RUN npm install
 COPY . .
 RUN npm run build
 
-# Serve stage
+# ── Serve stage ──────────────────────────────────────────
 FROM nginx:alpine
+
+ARG NGINX_CONF=nginx.config
 
 # Remove default config
 RUN rm /etc/nginx/conf.d/default.conf
 
 # Add our config
-COPY nginx.config /etc/nginx/conf.d/default.conf
+COPY ${NGINX_CONF} /etc/nginx/conf.d/default.conf
 
 # Copy build
 COPY --from=build /app/dist /usr/share/nginx/html

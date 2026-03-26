@@ -271,7 +271,7 @@ function DocumentReviewForm({
 
   // Auto-search vendor on mount if extracted vendor_name exists
   useEffect(() => {
-    if (isInvoice && extractedData.vendor_name) {
+    if (extractedData.vendor_name) {
       reviewService.searchVendors(String(extractedData.vendor_name)).then((results) => {
         if (results.length === 1) {
           selectVendor(results[0]);
@@ -854,23 +854,94 @@ function DocumentReviewForm({
                 </>
               ) : (
                 <>
-                  <div className="space-y-1.5">
+                  <div className="space-y-1.5" ref={vendorRef}>
                     <Label htmlFor="vendor_name">Vendor Name</Label>
-                    <Input
-                      id="vendor_name"
-                      value={form.vendor_name}
-                      onChange={(e) =>
-                        updateField("vendor_name", e.target.value)
-                      }
-                    />
+                    <div className="relative">
+                      <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="vendor_name"
+                        role="combobox"
+                        aria-expanded={showVendorDropdown}
+                        aria-haspopup="listbox"
+                        aria-autocomplete="list"
+                        aria-controls="vendor-search-listbox"
+                        value={vendorQuery}
+                        onChange={(e) => handleVendorSearch(e.target.value)}
+                        onFocus={() => {
+                          if (vendorResults.length > 0) setShowVendorDropdown(true);
+                        }}
+                        placeholder="Search vendor by name or email…"
+                        className="pl-8"
+                      />
+                      {showVendorDropdown && (
+                        <div
+                          id="vendor-search-listbox"
+                          role="listbox"
+                          className="absolute z-50 mt-1 w-full bg-background border rounded-lg shadow-lg max-h-48 overflow-y-auto"
+                        >
+                          {vendorResults.length > 0 ? (
+                            vendorResults.map((v) => (
+                              <button
+                                key={v.id}
+                                type="button"
+                                role="option"
+                                className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50"
+                                onClick={() => selectVendor(v)}
+                              >
+                                <span className="font-medium">{v.vendor_name}</span>
+                                {v.vendor_email && (
+                                  <span className="ml-2 text-xs text-muted-foreground">
+                                    {v.vendor_email}
+                                  </span>
+                                )}
+                              </button>
+                            ))
+                          ) : null}
+                          {/* Create new vendor option */}
+                          {vendorQuery.trim().length > 0 && (
+                            <button
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-muted/50 border-t flex items-center gap-2 text-primary"
+                              onClick={() => {
+                                setSelectedVendor(null);
+                                setShowVendorDropdown(false);
+                                setForm((prev) => ({
+                                  ...prev,
+                                  vendor_name: vendorQuery.trim(),
+                                }));
+                              }}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                              Create new vendor "{vendorQuery.trim()}"
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {selectedVendor && (
+                      <p className="text-xs text-emerald-600 flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Selected: {selectedVendor.vendor_name}
+                      </p>
+                    )}
+                    {!selectedVendor && form.vendor_name && (
+                      <p className="text-xs text-amber-600 flex items-center gap-1">
+                        <AlertCircle className="h-3 w-3" />
+                        New vendor — fill in details below
+                      </p>
+                    )}
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label htmlFor="vendor_email">Email</Label>
+                      <Label htmlFor="vendor_email">
+                        Email <span className="text-destructive">*</span>
+                      </Label>
                       <Input
                         id="vendor_email"
                         type="email"
                         value={form.vendor_email}
+                        readOnly={!!selectedVendor}
+                        className={selectedVendor ? "bg-muted/30" : ""}
                         onChange={(e) =>
                           updateField("vendor_email", e.target.value)
                         }
@@ -881,6 +952,8 @@ function DocumentReviewForm({
                       <Input
                         id="vendor_phone"
                         value={form.vendor_phone}
+                        readOnly={!!selectedVendor}
+                        className={selectedVendor ? "bg-muted/30" : ""}
                         onChange={(e) =>
                           updateField("vendor_phone", e.target.value)
                         }
@@ -892,6 +965,8 @@ function DocumentReviewForm({
                     <Input
                       id="vendor_address"
                       value={form.vendor_address}
+                      readOnly={!!selectedVendor}
+                      className={selectedVendor ? "bg-muted/30" : ""}
                       onChange={(e) =>
                         updateField("vendor_address", e.target.value)
                       }
@@ -902,11 +977,18 @@ function DocumentReviewForm({
                     <Input
                       id="vendor_tax_id"
                       value={form.vendor_tax_id}
+                      readOnly={!!selectedVendor}
+                      className={selectedVendor ? "bg-muted/30" : ""}
                       onChange={(e) =>
                         updateField("vendor_tax_id", e.target.value)
                       }
                     />
                   </div>
+                  {selectedVendor && (
+                    <p className="text-xs text-muted-foreground italic">
+                      Fields auto-filled from selected vendor. Search again to change.
+                    </p>
+                  )}
                 </>
               )}
             </CardContent>

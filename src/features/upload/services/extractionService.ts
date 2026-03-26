@@ -1,5 +1,6 @@
 import api from "@/lib/axios";
 import { ENDPOINTS } from "@/config/env";
+import { isAxiosError } from "axios";
 
 export interface ExtractionResult {
   status_code?: number;
@@ -40,8 +41,9 @@ export interface ExtractionJobResponse {
 }
 
 interface ExtractionResultStatusResponse {
-  status: "PENDING" | "COMPLETED" | "FAILED";
+  status: "PENDING" | "COMPLETED" | "FAILED" | "RETRY";
   result?: ExtractionResult;
+  message?: string;
   error?: string;
 }
 
@@ -51,6 +53,13 @@ export interface PendingReviewsResponse {
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+export class BackgroundProcessingError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "BackgroundProcessingError";
+  }
+}
 
 export const extractionService = {
   async uploadPurchaseOrder(file: File): Promise<ExtractionJobResponse> {
@@ -78,13 +87,24 @@ export const extractionService = {
     return data;
   },
 
+  async checkExtractionStatus(jobId: string): Promise<ExtractionResultStatusResponse> {
+    return this.getExtractionResult(jobId);
+  },
+
   /**
-   * Polls the result endpoint every 2s until COMPLETED or FAILED.
+   * Polls the result endpoint until COMPLETED or FAILED.
    * No SSE — just simple HTTP polling.
    */
-  async pollForResult(jobId: string): Promise<ExtractionResult> {
-    const POLL_INTERVAL = 2_000;
-    const MAX_ATTEMPTS = 20; // 40 seconds max
+  async pollForResult(
+    jobId: string,
+    options?: {
+      onRetry?: (message: string) => void;
+    },
+  ): Promise<ExtractionResult> {
+    let POLL_INTERVAL = 3_000;
+    const MAX_ATTEMPTS = 30;
+    const backgroundMessage =
+      "It looks like it takes some time you can do someother work while the processing will be done and added in the purchase order page";
 
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       await sleep(POLL_INTERVAL);
@@ -96,21 +116,26 @@ export const extractionService = {
           return status.result;
         }
 
+        if (status.status === "RETRY") {
+          POLL_INTERVAL = 30_000;
+          options?.onRetry?.(status.message || backgroundMessage);
+          continue;
+        }
+
         if (status.status === "FAILED") {
           throw new Error(
-            status.error || "Gemini OCR extraction failed.",
+            "Upload failed. Please try again later " 
           );
         }
       } catch (err) {
-        // Re-throw known extraction errors
-        if (err instanceof Error && err.message.includes("Gemini OCR")) {
+        // Only ignore transient HTTP/network issues while polling.
+        if (!isAxiosError(err)) {
           throw err;
         }
-        // Network blip — keep polling
       }
     }
 
-    throw new Error("The extraction is taking longer than expected. Please feel free to do other work while this processes. You can view the document later in the Purchase Orders page with an 'Under Review' status once processing completes.");
+    throw new BackgroundProcessingError(backgroundMessage);
   },
 
   async getPendingReviews(): Promise<PendingReviewsResponse> {

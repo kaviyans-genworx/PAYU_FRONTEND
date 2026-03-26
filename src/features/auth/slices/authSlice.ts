@@ -41,6 +41,22 @@ export const fetchCurrentUser = createAsyncThunk(
   },
 );
 
+// ---------- REFRESH TOKEN ----------
+export const refreshToken = createAsyncThunk(
+  "auth/refreshToken",
+  async (_, { rejectWithValue }) => {
+    try {
+      const data = await authService.refresh();
+      localStorage.setItem(TOKEN_KEY, data.access_token);
+      return data;
+    } catch (error: unknown) {
+      localStorage.removeItem(TOKEN_KEY);
+      const err = error as { response?: { data?: { detail?: string } } };
+      return rejectWithValue(err.response?.data?.detail || "Session expired. Please login again.");
+    }
+  },
+);
+
 // ---------- LOGOUT ----------
 export const logoutUser = createAsyncThunk(
   "auth/logout",
@@ -103,14 +119,29 @@ const authSlice = createSlice({
         state.isFirstLogin = action.payload.is_first_login;
       })
       .addCase(fetchCurrentUser.rejected, (state, action) => {
+        // Don't clear auth here — let ProtectedRoute handle refresh attempt
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      // Refresh token
+      .addCase(refreshToken.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(refreshToken.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.isAuthenticated = true;
+        state.accessToken = action.payload.access_token;
+        state.isFirstLogin = action.payload.is_first_login;
+      })
+      .addCase(refreshToken.rejected, (state) => {
         state.accessToken = null;
         state.isAuthenticated = false;
         state.userId = null;
         state.roleId = null;
         state.isFirstLogin = false;
-        localStorage.removeItem(TOKEN_KEY);
         state.isLoading = false;
-        state.error = action.payload as string;
+        localStorage.removeItem(TOKEN_KEY);
       })
       // Logout
       .addCase(logoutUser.fulfilled, (state) => {

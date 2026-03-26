@@ -47,6 +47,7 @@ function statusVariant(
 export function InvoiceDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+
   const [invoice, setInvoice] = useState<InvoiceOut | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +69,7 @@ export function InvoiceDetailPage() {
         setError(msg);
       })
       .finally(() => setLoading(false));
-  }, [id, navigate]);
+  }, [id]);
 
   if (loading) {
     return (

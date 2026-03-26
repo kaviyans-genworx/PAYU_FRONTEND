@@ -18,22 +18,24 @@ import {
   FileText,
   FileSpreadsheet,
   ShieldCheck,
-  AlertTriangle,
   AlertCircle,
   Clock,
   RefreshCw,
   ArrowRight,
+  TrendingUp,
 } from "lucide-react";
 
-/* ─── Helpers ──────────────────────────────────────────────── */
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+} from "chart.js";
+import { Pie } from "react-chartjs-2";
 
-function fmtNum(val?: number | null): string {
-  if (val == null) return "—";
-  return val.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
-}
+ChartJS.register(ArcElement, Tooltip, Legend);
+
+/* ─── Helpers ──────────────────────────────────────────────── */
 
 function validationBucket(
   status: string,
@@ -60,6 +62,7 @@ function StatCard({
   description,
   icon: Icon,
   color,
+  iconBg,
   onClick,
 }: {
   title: string;
@@ -67,101 +70,35 @@ function StatCard({
   description: string;
   icon: React.ElementType;
   color: string;
+  iconBg: string;
   onClick?: () => void;
 }) {
   return (
     <Card
-      className={`border shadow-sm ${onClick ? "cursor-pointer hover:shadow-md transition-shadow" : ""}`}
+      className={`rounded-2xl shadow-md border-0 transition-all duration-200 ${
+        onClick
+          ? "cursor-pointer hover:shadow-lg hover:-translate-y-0.5"
+          : ""
+      }`}
       onClick={onClick}
     >
-      <CardHeader className="flex flex-row items-center justify-between pb-2">
-        <CardDescription className="text-sm font-medium">
-          {title}
-        </CardDescription>
-        <div className={`rounded-lg p-2 ${color}`}>
-          <Icon className="h-4 w-4" />
+      <CardContent className="p-6">
+        <div className="flex items-start justify-between">
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground tracking-wide">
+              {title}
+            </p>
+            <p className={`text-4xl font-extrabold tracking-tight ${color}`}>
+              {value}
+            </p>
+            <p className="text-xs text-muted-foreground">{description}</p>
+          </div>
+          <div className={`rounded-xl p-3 ${iconBg}`}>
+            <Icon className="h-5 w-5" />
+          </div>
         </div>
-      </CardHeader>
-      <CardContent>
-        <div className="text-3xl font-bold">{value}</div>
-        <p className="text-xs text-muted-foreground mt-1">{description}</p>
       </CardContent>
     </Card>
-  );
-}
-
-/* ─── Mini Bar Chart (CSS-only) ────────────────────────────── */
-
-function MiniBarChart({
-  data,
-}: {
-  data: { label: string; value: number; color: string }[];
-}) {
-  const max = Math.max(...data.map((d) => d.value), 1);
-  return (
-    <div className="flex items-end gap-3 h-32">
-      {data.map((d) => (
-        <div key={d.label} className="flex-1 flex flex-col items-center gap-1">
-          <span className="text-xs font-semibold tabular-nums">{d.value}</span>
-          <div
-            className={`w-full rounded-t-md ${d.color} transition-all duration-500`}
-            style={{ height: `${(d.value / max) * 100}%`, minHeight: d.value > 0 ? "4px" : "0" }}
-          />
-          <span className="text-[10px] text-muted-foreground text-center leading-tight mt-1">
-            {d.label}
-          </span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ─── Mini Pie (CSS conic-gradient) ────────────────────────── */
-
-function MiniPie({
-  data,
-}: {
-  data: { label: string; value: number; color: string; textColor: string }[];
-}) {
-  const total = data.reduce((s, d) => s + d.value, 0);
-  if (total === 0) {
-    return (
-      <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-        No data
-      </div>
-    );
-  }
-
-  // Build conic gradient stops
-  let cumulative = 0;
-  const stops = data
-    .map((d) => {
-      const start = cumulative;
-      const end = cumulative + (d.value / total) * 100;
-      cumulative = end;
-      return `${d.color} ${start.toFixed(1)}% ${end.toFixed(1)}%`;
-    })
-    .join(", ");
-
-  return (
-    <div className="flex items-center gap-6">
-      <div
-        className="h-28 w-28 rounded-full shrink-0"
-        style={{ background: `conic-gradient(${stops})` }}
-      />
-      <div className="space-y-1.5">
-        {data.map((d) => (
-          <div key={d.label} className="flex items-center gap-2 text-sm">
-            <span
-              className="inline-block w-3 h-3 rounded-sm shrink-0"
-              style={{ backgroundColor: d.color }}
-            />
-            <span className="text-muted-foreground">{d.label}</span>
-            <span className="font-semibold ml-auto tabular-nums">{d.value}</span>
-          </div>
-        ))}
-      </div>
-    </div>
   );
 }
 
@@ -200,7 +137,6 @@ export function DashboardPage() {
 
     const { invoices, purchaseOrders, validationGroups } = data;
 
-    // Validation buckets
     const validationPassed = validationGroups.filter(
       (g) => validationBucket(g.status) === "passed",
     ).length;
@@ -211,17 +147,10 @@ export function DashboardPage() {
       (g) => validationBucket(g.status) === "partial",
     ).length;
 
-    // Invoices awaiting validation (PENDING / REVIEW_REQUIRED)
     const invoicesAwaiting = invoices.filter((inv) =>
       ["PENDING", "REVIEW_REQUIRED"].includes(inv.status.toUpperCase()),
     );
 
-    // Invoices without PO mapping (vendor_id missing or invoice status not MATCHED)
-    const invoicesUnmapped = invoices.filter(
-      (inv) => !inv.vendor_id && inv.status.toUpperCase() !== "MATCHED",
-    );
-
-    // POs not yet invoiced — simplified heuristic: POs with no matching invoice vendor_id
     const invoiceVendorIds = new Set(
       invoices.map((inv) => inv.vendor_id).filter(Boolean),
     );
@@ -229,23 +158,13 @@ export function DashboardPage() {
       (po) => !invoiceVendorIds.has(po.vendor_id),
     );
 
-    // Overdue POs: po_date < today and not linked to any invoice
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const overduePOs = purchaseOrders.filter((po) => {
-      if (!po.po_date) return false;
-      const poDate = new Date(po.po_date);
-      return poDate < today && !invoiceVendorIds.has(po.vendor_id);
-    });
-
-    // Recent validation groups (last 5)
     const recentValidations = [...validationGroups]
       .sort(
         (a, b) =>
           new Date(b.created_at ?? 0).getTime() -
           new Date(a.created_at ?? 0).getTime(),
       )
-      .slice(0, 5);
+      .slice(0, 8);
 
     return {
       totalInvoices: invoices.length,
@@ -255,30 +174,28 @@ export function DashboardPage() {
       validationFailed,
       validationPartial,
       invoicesAwaiting,
-      invoicesUnmapped,
       posNotInvoiced,
-      overduePOs,
       recentValidations,
     };
   }, [data]);
 
   if (loading) {
     return (
-      <div className="flex justify-center py-16">
-        <LoadingSpinner size={32} />
+      <div className="flex items-center justify-center py-24">
+        <LoadingSpinner size={36} />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="space-y-4">
-        <div className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/5 px-4 py-3">
+      <div className="space-y-4 max-w-lg mx-auto py-16">
+        <div className="flex items-start gap-3 rounded-2xl border border-destructive/30 bg-destructive/5 px-5 py-4 shadow-sm">
           <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
           <p className="text-sm text-destructive">{error}</p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchData}>
-          <RefreshCw className="h-4 w-4 mr-1" />
+        <Button variant="outline" size="sm" onClick={fetchData} className="rounded-xl">
+          <RefreshCw className="h-4 w-4 mr-2" />
           Retry
         </Button>
       </div>
@@ -287,268 +204,217 @@ export function DashboardPage() {
 
   if (!analytics) return null;
 
+  /* ─── Pie Chart ─── */
+  const totalValidationItems =
+    analytics.validationPassed + analytics.validationFailed + analytics.validationPartial;
+  const hasPieData = totalValidationItems > 0;
+
+  const pieData = {
+    labels: ["Passed", "Failed", "Partial"],
+    datasets: [
+      {
+        data: [
+          analytics.validationPassed,
+          analytics.validationFailed,
+          analytics.validationPartial,
+        ],
+        backgroundColor: ["#059669", "#dc2626", "#d97706"],
+        hoverBackgroundColor: ["#047857", "#b91c1c", "#b45309"],
+        borderWidth: 3,
+        borderColor: "#ffffff",
+        hoverOffset: 8,
+      },
+    ],
+  };
+
+  const pieOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+      animateRotate: true,
+      animateScale: true,
+      duration: 800,
+    },
+    plugins: {
+      legend: {
+        position: "bottom" as const,
+        labels: {
+          usePointStyle: true,
+          pointStyle: "circle",
+          padding: 20,
+          font: { size: 13, weight: 600 as const },
+          color: "#64748b",
+        },
+      },
+      tooltip: {
+        backgroundColor: "rgba(15,23,42,0.9)",
+        padding: 14,
+        cornerRadius: 10,
+        titleFont: { size: 14, weight: 700 as const },
+        bodyFont: { size: 13 },
+        callbacks: {
+          label: (ctx: { label?: string; raw?: unknown }) => {
+            const val = ctx.raw as number;
+            const pct =
+              totalValidationItems > 0
+                ? ((val / totalValidationItems) * 100).toFixed(1)
+                : "0";
+            return ` ${ctx.label}: ${val} (${pct}%)`;
+          },
+        },
+      },
+    },
+  };
+
   return (
     <div className="space-y-8">
-      {/* Page header */}
+      {/* ─── Header ─── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-muted-foreground mt-1">
+          <h1 className="text-3xl font-extrabold tracking-tight">Dashboard</h1>
+          <p className="text-muted-foreground mt-1 text-sm">
             Overview of your accounts payable processing pipeline.
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={fetchData}>
-          <RefreshCw className="h-4 w-4 mr-1" />
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={fetchData}
+          className="rounded-xl gap-2"
+        >
+          <RefreshCw className="h-4 w-4" />
           Refresh
         </Button>
       </div>
 
-      {/* === Row 1: Document Counts === */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {/* ─── Row 1: Key Metrics ─── */}
+      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard
           title="Total Invoices"
           value={analytics.totalInvoices}
           description="Invoices processed"
           icon={FileText}
-          color="text-blue-600 bg-blue-50 dark:text-blue-400 dark:bg-blue-950/40"
+          color="text-blue-700 dark:text-blue-400"
+          iconBg="bg-blue-100 text-blue-600 dark:bg-blue-950/50 dark:text-blue-400"
           onClick={() => navigate("/invoices")}
         />
         <StatCard
           title="Total Purchase Orders"
           value={analytics.totalPOs}
-          description="Purchase orders processed"
+          description="Purchase orders on file"
           icon={FileSpreadsheet}
-          color="text-indigo-600 bg-indigo-50 dark:text-indigo-400 dark:bg-indigo-950/40"
+          color="text-indigo-700 dark:text-indigo-400"
+          iconBg="bg-indigo-100 text-indigo-600 dark:bg-indigo-950/50 dark:text-indigo-400"
           onClick={() => navigate("/purchase-orders")}
         />
         <StatCard
-          title="Total Validation Groups"
+          title="Validation Groups"
           value={analytics.totalValidations}
           description="Validation groups created"
           icon={ShieldCheck}
-          color="text-purple-600 bg-purple-50 dark:text-purple-400 dark:bg-purple-950/40"
+          color="text-purple-700 dark:text-purple-400"
+          iconBg="bg-purple-100 text-purple-600 dark:bg-purple-950/50 dark:text-purple-400"
           onClick={() => navigate("/validation")}
         />
       </div>
 
-      {/* === Row 2: Validation Charts === */}
-      <div className="grid gap-6 md:grid-cols-2">
+      {/* ─── Row 2: Pie Chart + Insight Cards ─── */}
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Pie Chart */}
-        <Card className="border shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Validation Status Overview</CardTitle>
-            <CardDescription>
+        <Card className="rounded-2xl shadow-md border-0 lg:col-span-1">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-4 w-4 text-primary" />
+              <CardTitle className="text-base font-semibold">Validation Overview</CardTitle>
+            </div>
+            <CardDescription className="text-xs">
               Distribution of validation results
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <MiniPie
-              data={[
-                {
-                  label: "Passed",
-                  value: analytics.validationPassed,
-                  color: "#10b981",
-                  textColor: "text-emerald-600",
-                },
-                {
-                  label: "Failed",
-                  value: analytics.validationFailed,
-                  color: "#ef4444",
-                  textColor: "text-red-600",
-                },
-                {
-                  label: "Partial",
-                  value: analytics.validationPartial,
-                  color: "#f59e0b",
-                  textColor: "text-amber-600",
-                },
-              ]}
-            />
+            {hasPieData ? (
+              <div className="h-64 flex items-center justify-center">
+                <Pie data={pieData} options={pieOptions} />
+              </div>
+            ) : (
+              <div className="flex items-center justify-center h-64 text-sm text-muted-foreground">
+                No validation data yet
+              </div>
+            )}
           </CardContent>
         </Card>
 
-        {/* Bar Chart */}
-        <Card className="border shadow-sm">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base">Validation Metrics</CardTitle>
-            <CardDescription>
-              Successful vs failed vs partial validations
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <MiniBarChart
-              data={[
-                {
-                  label: "Passed",
-                  value: analytics.validationPassed,
-                  color: "bg-emerald-500",
-                },
-                {
-                  label: "Failed",
-                  value: analytics.validationFailed,
-                  color: "bg-red-500",
-                },
-                {
-                  label: "Partial",
-                  value: analytics.validationPartial,
-                  color: "bg-amber-500",
-                },
-              ]}
-            />
-          </CardContent>
-        </Card>
+        {/* Insight cards */}
+        <div className="lg:col-span-2 grid gap-6 sm:grid-cols-2">
+          <StatCard
+            title="Awaiting Validation"
+            value={analytics.invoicesAwaiting.length}
+            description="Invoices pending review"
+            icon={Clock}
+            color="text-amber-700 dark:text-amber-400"
+            iconBg="bg-amber-100 text-amber-600 dark:bg-amber-950/50 dark:text-amber-400"
+          />
+          <StatCard
+            title="POs Not Invoiced"
+            value={analytics.posNotInvoiced.length}
+            description="No linked invoice yet"
+            icon={FileSpreadsheet}
+            color="text-slate-700 dark:text-slate-400"
+            iconBg="bg-slate-100 text-slate-600 dark:bg-slate-950/50 dark:text-slate-400"
+          />
+        </div>
       </div>
 
-      {/* === Row 3: Processing Insights === */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Awaiting Validation"
-          value={analytics.invoicesAwaiting.length}
-          description="Invoices pending review"
-          icon={Clock}
-          color="text-amber-600 bg-amber-50 dark:text-amber-400 dark:bg-amber-950/40"
-        />
-        <StatCard
-          title="Unmapped Invoices"
-          value={analytics.invoicesUnmapped.length}
-          description="Without PO mapping"
-          icon={AlertTriangle}
-          color="text-orange-600 bg-orange-50 dark:text-orange-400 dark:bg-orange-950/40"
-        />
-        <StatCard
-          title="POs Not Invoiced"
-          value={analytics.posNotInvoiced.length}
-          description="No linked invoice"
-          icon={FileSpreadsheet}
-          color="text-slate-600 bg-slate-50 dark:text-slate-400 dark:bg-slate-950/40"
-        />
-        <StatCard
-          title="Overdue POs"
-          value={analytics.overduePOs.length}
-          description="Past due date, no invoice"
-          icon={AlertCircle}
-          color="text-red-600 bg-red-50 dark:text-red-400 dark:bg-red-950/40"
-        />
-      </div>
-
-      {/* === Row 4: Overdue PO Alerts === */}
-      {analytics.overduePOs.length > 0 && (
-        <Card className="border shadow-sm border-red-200 dark:border-red-800">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <AlertCircle className="h-4 w-4 text-red-500" />
-              Overdue PO Alerts
-            </CardTitle>
-            <CardDescription>
-              Purchase orders past their due date with no linked invoice
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-y bg-red-50/50 dark:bg-red-950/20">
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
-                      PO #
-                    </th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
-                      Vendor
-                    </th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
-                      Due Date
-                    </th>
-                    <th className="text-right px-4 py-2.5 font-medium text-muted-foreground">
-                      Amount
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {analytics.overduePOs.slice(0, 10).map((po) => (
-                    <tr
-                      key={po.id}
-                      role="button"
-                      tabIndex={0}
-                      className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
-                      onClick={() => navigate(`/purchase-orders/${po.id}`)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" || e.key === " ") {
-                          e.preventDefault();
-                          navigate(`/purchase-orders/${po.id}`);
-                        }
-                      }}
-                    >
-                      <td className="px-4 py-2.5 font-medium">
-                        {po.po_number || "—"}
-                      </td>
-                      <td className="px-4 py-2.5">
-                        Vendor #{po.vendor_id}
-                      </td>
-                      <td className="px-4 py-2.5 text-red-600 dark:text-red-400">
-                        {po.po_date
-                          ? new Date(po.po_date).toLocaleDateString()
-                          : "—"}
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums">
-                        {fmtNum(po.total_amount)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* === Row 5: Recent Validation Activity === */}
-      <Card className="border shadow-sm">
+      {/* ─── Row 3: Recent Validation Activity ─── */}
+      <Card className="rounded-2xl shadow-md border-0">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div>
-              <CardTitle className="text-base">Recent Validation Activity</CardTitle>
-              <CardDescription>
+              <CardTitle className="text-base font-semibold">Recent Validation Activity</CardTitle>
+              <CardDescription className="text-xs">
                 Latest validation groups
               </CardDescription>
             </div>
             <Button
-              variant="ghost"
+              variant="outline"
               size="sm"
               onClick={() => navigate("/validation")}
+              className="rounded-xl gap-2"
             >
               View All
-              <ArrowRight className="h-4 w-4 ml-1" />
+              <ArrowRight className="h-4 w-4" />
             </Button>
           </div>
         </CardHeader>
         <CardContent className="p-0">
           {analytics.recentValidations.length === 0 ? (
-            <div className="flex items-center justify-center h-24 text-sm text-muted-foreground">
+            <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
               No validation activity yet
             </div>
           ) : (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="border-y bg-muted/50">
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
+                  <tr className="border-y bg-muted/40">
+                    <th className="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                       Group
                     </th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
+                    <th className="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                       Status
                     </th>
-                    <th className="text-center px-4 py-2.5 font-medium text-muted-foreground">
+                    <th className="text-center px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                       Invoices
                     </th>
-                    <th className="text-center px-4 py-2.5 font-medium text-muted-foreground">
+                    <th className="text-center px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                       POs
                     </th>
-                    <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
+                    <th className="text-left px-5 py-3 font-semibold text-muted-foreground text-xs uppercase tracking-wider">
                       Created
                     </th>
                   </tr>
                 </thead>
                 <tbody>
-                  {analytics.recentValidations.map((g) => {
+                  {analytics.recentValidations.map((g, idx) => {
                     const bucket = validationBucket(g.status);
                     const badgeVariant =
                       bucket === "passed"
@@ -561,7 +427,9 @@ export function DashboardPage() {
                         key={g.id}
                         role="button"
                         tabIndex={0}
-                        className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
+                        className={`border-b last:border-0 cursor-pointer transition-colors hover:bg-primary/5 ${
+                          idx % 2 === 1 ? "bg-muted/20" : ""
+                        }`}
                         onClick={() => navigate(`/validation/${g.id}`)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
@@ -570,21 +438,24 @@ export function DashboardPage() {
                           }
                         }}
                       >
-                        <td className="px-4 py-2.5 font-medium">
+                        <td className="px-5 py-3.5 font-semibold">
                           #{g.id}
                         </td>
-                        <td className="px-4 py-2.5">
-                          <Badge variant={badgeVariant as "success" | "destructive" | "warning"}>
+                        <td className="px-5 py-3.5">
+                          <Badge
+                            variant={badgeVariant as "success" | "destructive" | "warning"}
+                            className="rounded-full px-3 py-0.5 text-xs font-semibold"
+                          >
                             {g.status}
                           </Badge>
                         </td>
-                        <td className="px-4 py-2.5 text-center">
+                        <td className="px-5 py-3.5 text-center tabular-nums">
                           {g.invoice_count}
                         </td>
-                        <td className="px-4 py-2.5 text-center">
+                        <td className="px-5 py-3.5 text-center tabular-nums">
                           {g.po_count}
                         </td>
-                        <td className="px-4 py-2.5 text-muted-foreground">
+                        <td className="px-5 py-3.5 text-muted-foreground">
                           {g.created_at
                             ? new Date(g.created_at).toLocaleDateString()
                             : "—"}

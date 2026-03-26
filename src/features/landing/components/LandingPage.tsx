@@ -1,9 +1,23 @@
 import { useNavigate } from "react-router-dom";
+import { useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { ArrowRight, Wallet, ShieldCheck, Zap } from "lucide-react";
+import { useAppSelector } from "@/hooks/useAppStore";
 
 export function LandingPage() {
   const navigate = useNavigate();
+  const { isAuthenticated, roleId } = useAppSelector((state) => state.auth);
+
+  // Auto-redirect if user is already authenticated AND role is resolved
+  useEffect(() => {
+    if (isAuthenticated && roleId !== null) {
+      if (roleId === 1) {
+        navigate("/admin/dashboard", { replace: true });
+      } else {
+        navigate("/dashboard", { replace: true });
+      }
+    }
+  }, [isAuthenticated, roleId, navigate]);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col">

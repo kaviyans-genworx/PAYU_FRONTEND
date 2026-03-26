@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "@/hooks/useAppStore";
-import { extractPurchaseOrder, resetUpload } from "../slices/uploadSlice";
+import { checkBackgroundExtractionStatus, extractPurchaseOrder, resetUpload } from "../slices/uploadSlice";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -17,6 +17,7 @@ import {
   Loader2,
   AlertCircle,
   AlertTriangle,
+  Info,
 } from "lucide-react";
 
 const ACCEPTED_TYPES = ["application/pdf", "image/png", "image/jpeg"];
@@ -51,7 +52,7 @@ function ExtractionLoader() {
   }, [stepIndex]);
 
   useEffect(() => {
-    const delays = [1000, 1000, 15000, 1000, 2000, 4000, 4000, 4000];
+    const delays = [1000, 1000, 23000, 1000, 2000, 4000, 4000, 4000];
     if (stepIndex >= EXTRACTION_STEPS.length - 1) return;
     const timeout = setTimeout(() => {
       setStepIndex((prev) => Math.min(prev + 1, EXTRACTION_STEPS.length - 1));
@@ -101,11 +102,12 @@ function ExtractionLoader() {
 export function UploadPage() {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
-  const { loading, error, result } = useAppSelector((s) => s.upload);
+  const { loading, error, info, result, jobId } = useAppSelector((s) => s.upload);
 
   const [file, setFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [duplicateError, setDuplicateError] = useState<string | null>(null);
+  const [backendError, setBackendError] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = useCallback((f: File | null) => {
@@ -127,11 +129,20 @@ export function UploadPage() {
   const handleSubmit = async () => {
     if (!file) return;
     setDuplicateError(null);
+    setBackendError(null);
     const resultAction = await dispatch(extractPurchaseOrder({ file }));
     if (extractPurchaseOrder.fulfilled.match(resultAction)) {
       const payload = resultAction.payload;
-      if (payload.duplicate || payload.status_code === 409) {
-        setDuplicateError(payload.message ?? "This purchase order already exists.");
+
+      if (payload.status_code && payload.status_code !== 200) {
+        if (payload.status_code === 409) {
+          setDuplicateError(payload.message ?? "This purchase order already exists.");
+        } else {
+          // 👇 This handles WRONG DOCUMENT TYPE + other backend errors
+          dispatch(resetUpload());
+          clearExtractionStep();
+          setBackendError(payload.message || "Extraction failed");
+        }
         return;
       }
 
@@ -150,9 +161,33 @@ export function UploadPage() {
   const handleReset = () => {
     setFile(null);
     setDuplicateError(null);
+    setBackendError(null);
     dispatch(resetUpload());
+    clearExtractionStep();
     if (inputRef.current) inputRef.current.value = "";
   };
+
+  useEffect(() => {
+    if (!jobId || loading || !info || error || result) return;
+
+    let isDisposed = false;
+    let isChecking = false;
+
+    const runStatusCheck = async () => {
+      if (isDisposed || isChecking) return;
+      isChecking = true;
+      await dispatch(checkBackgroundExtractionStatus({ jobId }));
+      isChecking = false;
+    };
+
+    runStatusCheck();
+    const interval = setInterval(runStatusCheck, 5000);
+
+    return () => {
+      isDisposed = true;
+      clearInterval(interval);
+    };
+  }, [dispatch, error, info, jobId, loading, result]);
 
   /* ---- Loading state: show extraction animation ---- */
   if (loading) {
@@ -168,6 +203,15 @@ export function UploadPage() {
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">{file.name}</p>
               <p className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(1)} KB</p>
+            </div>
+          </div>
+        )}
+        {info && (
+          <div className="mt-1 mb-6 flex items-start gap-3 rounded-lg border border-blue-400/50 bg-blue-50 dark:bg-blue-950/30 px-4 py-3 w-full">
+            <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-blue-800 dark:text-blue-300">Processing in Background</p>
+              <p className="text-sm text-blue-800/80 dark:text-blue-300/80 mt-0.5">{info}</p>
             </div>
           </div>
         )}
@@ -274,22 +318,38 @@ export function UploadPage() {
               </div>
             </div>
           )}
+
+          {backendError && (
+            <div className="mt-4 flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/10 px-4 py-3">
+              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-destructive">Extraction Failed</p>
+                <p className="text-sm text-destructive/80 mt-0.5">{backendError}</p>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
       {error && (
-        <Card className={error.includes("longer than expected") ? "border-amber-400/50 shadow-sm bg-amber-50/50" : "border-destructive/50 shadow-sm"}>
+        <Card className="border-destructive/50 shadow-sm bg-destructive/5">
           <CardContent className="flex items-start gap-3 pt-6">
-            {error.includes("longer than expected") ? (
-              <AlertTriangle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
-            ) : (
-              <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            )}
+            <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
             <div>
-              <p className={`text-sm font-medium ${error.includes("longer than expected") ? "text-amber-800" : "text-destructive"}`}>
-                {error.includes("longer than expected") ? "Extraction Processing Delayed" : "Extraction Failed"}
-              </p>
-              <p className={`text-sm mt-1 ${error.includes("longer than expected") ? "text-amber-800/80 leading-relaxed" : "text-muted-foreground"}`}>{error}</p>
+              <p className="text-sm font-medium text-destructive">Extraction Failed</p>
+              <p className="text-sm mt-1 text-destructive/80">{error}</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {info && (
+        <Card className="border-blue-400/50 shadow-sm bg-blue-50/50 dark:bg-blue-950/30">
+          <CardContent className="flex items-start gap-3 pt-6">
+            <Info className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-medium text-blue-800 dark:text-blue-300">Processing in Background</p>
+              <p className="text-sm mt-1 text-blue-800/80 dark:text-blue-300/80 leading-relaxed">{info}</p>
             </div>
           </CardContent>
         </Card>
