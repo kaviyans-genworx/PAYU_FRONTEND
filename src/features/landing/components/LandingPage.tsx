@@ -24,8 +24,8 @@ export function LandingPage() {
       {/* Header */}
       <header className="flex items-center justify-between px-6 py-4 bg-white shadow-sm">
         <div className="flex items-center gap-2">
-          <div className="bg-primary p-1.5 rounded-md">
-            <Wallet className="w-5 h-5 text-primary-foreground" />
+          <div className="flex items-center justify-center shrink-0">
+            <img src="/logo.png" alt="PAYU Logo" className="h-8 w-auto object-contain drop-shadow-sm" />
           </div>
           <span className="text-xl font-bold tracking-tight text-primary">PAYU</span>
         </div>

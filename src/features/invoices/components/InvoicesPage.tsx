@@ -245,6 +245,9 @@ export function InvoicesPage() {
                     <th className="text-left px-4 py-2.5 font-medium text-muted-foreground">
                       Created
                     </th>
+                    <th className="text-right px-4 py-2.5 font-medium text-muted-foreground w-[100px]">
+                      <span className="sr-only">Actions</span>
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -253,7 +256,8 @@ export function InvoicesPage() {
                       key={inv.id}
                       role="button"
                       tabIndex={0}
-                      className="border-b last:border-0 hover:bg-muted/30 cursor-pointer transition-colors"
+                      title="Click to view details"
+                      className="group border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
                       onClick={() => navigate(`/invoices/${inv.id}`)}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
@@ -291,6 +295,20 @@ export function InvoicesPage() {
                         {inv.created_at
                           ? new Date(inv.created_at).toLocaleDateString()
                           : "—"}
+                      </td>
+                      <td className="px-4 py-2.5 text-right">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="w-full justify-between focus:ring-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/invoices/${inv.id}`);
+                          }}
+                        >
+                          View
+                          <span className="ml-2">→</span>
+                        </Button>
                       </td>
                     </tr>
                   ))}

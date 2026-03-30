@@ -134,7 +134,13 @@ export function PODetailPage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate("/purchase-orders")}
+          onClick={() => {
+            if (window.history.length > 2) {
+              navigate(-1);
+            } else {
+              navigate("/purchase-orders");
+            }
+          }}
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back

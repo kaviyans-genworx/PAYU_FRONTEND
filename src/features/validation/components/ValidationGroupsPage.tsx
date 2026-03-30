@@ -487,7 +487,17 @@ export function ValidationGroupsPage() {
                   {tablePagination.paginatedItems.map((g) => (
                     <tr
                       key={g.id}
-                      className="border-b last:border-0 hover:bg-muted/30 transition-colors"
+                      role="button"
+                      tabIndex={0}
+                      title="Click to view details"
+                      className="group border-b last:border-0 hover:bg-muted/50 cursor-pointer transition-colors"
+                      onClick={() => navigate(`/validation/${g.id}`)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          navigate(`/validation/${g.id}`);
+                        }
+                      }}
                     >
                       <td className="px-4 py-3 font-medium">{g.id}</td>
                       <td className="px-4 py-3">
@@ -508,7 +518,11 @@ export function ValidationGroupsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => navigate(`/validation/${g.id}`)}
+                          className="w-full justify-center focus:ring-1"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            navigate(`/validation/${g.id}`);
+                          }}
                         >
                           <Eye className="h-4 w-4 mr-1" />
                           View

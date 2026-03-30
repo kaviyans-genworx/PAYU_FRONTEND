@@ -534,9 +534,11 @@ function DocumentTotalsCard({ data }: { data: ValidationResultsOut }) {
 function DocumentMappingCard({
   invoices,
   pos,
+  groupId,
 }: {
   invoices: InvoiceBrief[];
   pos: POBrief[];
+  groupId: number;
 }) {
   return (
     <Card className="border shadow-sm bg-white dark:bg-card">
@@ -565,6 +567,7 @@ function DocumentMappingCard({
                   <Link
                     key={inv.id}
                     to={`/invoices/${inv.id}`}
+                    state={{ fromValidation: true, groupId }}
                     className="block rounded-lg border bg-blue-50/30 dark:bg-blue-950/10 border-blue-200/60 dark:border-blue-800/40 p-3 transition-colors hover:bg-blue-100/50 dark:hover:bg-blue-950/30 hover:shadow-sm"
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -607,6 +610,7 @@ function DocumentMappingCard({
                   <Link
                     key={po.id}
                     to={`/purchase-orders/${po.id}`}
+                    state={{ fromValidation: true, groupId }}
                     className="block rounded-lg border bg-indigo-50/30 dark:bg-indigo-950/10 border-indigo-200/60 dark:border-indigo-800/40 p-3 transition-colors hover:bg-indigo-100/50 dark:hover:bg-indigo-950/30 hover:shadow-sm"
                   >
                     <div className="flex items-center justify-between gap-3">
@@ -932,7 +936,17 @@ export function ValidationGroupDetailPage() {
   if (error) {
     return (
       <div className="space-y-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/validation")}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            if (window.history.length > 2) {
+              navigate(-1);
+            } else {
+              navigate("/validation");
+            }
+          }}
+        >
           <ArrowLeft className="h-4 w-4 mr-1" /> Back
         </Button>
         <div className="flex items-start gap-3 rounded-lg border border-destructive/50 bg-destructive/5 px-4 py-3">
@@ -949,7 +963,17 @@ export function ValidationGroupDetailPage() {
     <div className="space-y-6 max-w-7xl mx-auto relative">
       {/* Header */}
       <div className="flex items-center gap-4" id="vd-top">
-        <Button variant="ghost" size="sm" onClick={() => navigate("/validation")}>
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            if (window.history.length > 2) {
+              navigate(-1);
+            } else {
+              navigate("/validation");
+            }
+          }}
+        >
           <ArrowLeft className="h-4 w-4 mr-1" /> Back
         </Button>
         <div>
@@ -1005,7 +1029,7 @@ export function ValidationGroupDetailPage() {
 
       {/* Section — Documents in this Validation */}
       <div id="vd-documents">
-        <DocumentMappingCard invoices={data.invoices} pos={data.pos} />
+        <DocumentMappingCard invoices={data.invoices} pos={data.pos} groupId={data.group_id} />
       </div>
 
       {/* Section — Financial Comparison */}

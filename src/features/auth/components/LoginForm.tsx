@@ -14,7 +14,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { LoadingSpinner } from "@/components/common/LoadingSpinner";
-import { Eye, EyeOff, LogIn, FileText } from "lucide-react";
+import { Eye, EyeOff, LogIn } from "lucide-react";
 
 export function LoginForm() {
   const dispatch = useAppDispatch();
@@ -60,8 +60,8 @@ export function LoginForm() {
       <div className="relative w-full max-w-md">
         {/* Logo / Brand */}
         <div className="flex flex-col items-center mb-8">
-          <div className="flex items-center justify-center h-14 w-14 rounded-xl bg-primary text-primary-foreground shadow-lg mb-4">
-            <FileText className="h-7 w-7" />
+          <div className="flex items-center justify-center h-20 w-auto mb-4">
+            <img src="/logo.png" alt="PAYU Logo" className="h-full w-auto object-contain drop-shadow-md" />
           </div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">
             PAYU

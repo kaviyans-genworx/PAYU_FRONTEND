@@ -1464,7 +1464,11 @@ export function ReviewPage() {
 
   const handleCancel = () => {
     sessionStorage.removeItem("active_review_id");
-    navigate("/upload");
+    if (window.history.length > 2) {
+      navigate(-1);
+    } else {
+      navigate("/upload");
+    }
   };
 
   if (loading) {

@@ -105,12 +105,27 @@ export function DashboardLayout() {
   // Derive page title and breadcrumb from current route
   const pageInfo = useMemo(() => {
     const path = location.pathname;
-    const matched = navItems.find((item) => path.startsWith(item.href));
+    const state = location.state as { fromValidation?: boolean; groupId?: string | number } | null;
+
+    let matched = navItems.find((item) => path.startsWith(item.href));
+    
+    // Override matched base route if we came from validation
+    if (state?.fromValidation) {
+      matched = navItems.find((item) => item.href === "/validation");
+    }
+
     const title = matched?.label ?? "PAYU";
     const breadcrumbs: { label: string; href?: string }[] = [{ label: "Home", href: "/dashboard" }];
 
     if (matched && matched.href !== "/dashboard") {
-      breadcrumbs.push({ label: matched.label, href: matched.href });
+      if (state?.fromValidation && state.groupId) {
+        // Validation flow breadcrumbs
+        breadcrumbs.push({ label: "Validation", href: "/validation" });
+        breadcrumbs.push({ label: `Group #${state.groupId}`, href: `/validation/${state.groupId}` });
+      } else {
+        // Standard flow
+        breadcrumbs.push({ label: matched.label, href: matched.href });
+      }
     }
 
     // Handle detail routes like /invoices/:id, /purchase-orders/:id, /validation/:groupId, /payments/:groupId, /acceptance/:groupId
@@ -125,11 +140,19 @@ export function DashboardLayout() {
         payments: "Payment",
         acceptance: "Acceptance",
       };
-      breadcrumbs.push({ label: `${detailLabels[segment]} #${id}` });
+      
+      // If we came from validation and we are looking at an invoice or PO, just add the invoice/PO crumb.
+      // (The Group # crumb is already added above)
+      if (state?.fromValidation && (segment === "invoices" || segment === "purchase-orders")) {
+        breadcrumbs.push({ label: `${detailLabels[segment]} #${id}` });
+      } else if (segment !== "validation" || !(state?.fromValidation)) {
+        // Standard append if it's not a validation group page or we didn't inject validation crumbs
+        breadcrumbs.push({ label: `${detailLabels[segment]} #${id}` });
+      }
     }
 
     return { title, breadcrumbs };
-  }, [location.pathname]);
+  }, [location.pathname, location.state]);
 
   return (
     <div className="h-screen flex overflow-hidden bg-background">
@@ -154,8 +177,8 @@ export function DashboardLayout() {
       >
         {/* Brand */}
         <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border shrink-0">
-          <div className="flex items-center justify-center h-9 w-9 rounded-lg bg-sidebar-primary text-sidebar-primary-foreground shrink-0">
-            <FileText className="h-5 w-5" />
+          <div className="flex items-center justify-center shrink-0">
+            <img src="/logo.png" alt="PAYU Logo" className="h-9 w-auto object-contain" />
           </div>
           {!collapsed && (
             <div className="overflow-hidden">

@@ -277,7 +277,16 @@ export function PaymentsPage() {
                     return (
                       <tr
                         key={p.group_id}
-                        className="border-b last:border-0 hover:bg-muted/30 transition-colors cursor-pointer"
+                        role="button"
+                        tabIndex={0}
+                        title="Click to view details"
+                        className="group border-b last:border-0 hover:bg-muted/50 transition-colors cursor-pointer"
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            navigate(`/payments/${p.group_id}`);
+                          }
+                        }}
                         onClick={() => navigate(`/payments/${p.group_id}`)}
                       >
                         <td className="px-5 py-3.5 font-semibold">#{p.group_id}</td>

@@ -321,7 +321,7 @@ export function DashboardPage() {
       {/* ─── Row 2: Pie Chart + Insight Cards ─── */}
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Pie Chart */}
-        <Card className="rounded-2xl shadow-md border-0 lg:col-span-1">
+        <Card className="rounded-2xl shadow-md border-0 lg:col-span-2">
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
@@ -345,7 +345,7 @@ export function DashboardPage() {
         </Card>
 
         {/* Insight cards */}
-        <div className="lg:col-span-2 grid gap-6 sm:grid-cols-2">
+        <div className="flex flex-col gap-6 lg:col-span-1">
           <StatCard
             title="Awaiting Validation"
             value={analytics.invoicesAwaiting.length}

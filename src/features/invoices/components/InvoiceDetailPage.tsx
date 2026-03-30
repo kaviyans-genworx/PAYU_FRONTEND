@@ -103,7 +103,13 @@ export function InvoiceDetailPage() {
         <Button
           variant="ghost"
           size="sm"
-          onClick={() => navigate("/invoices")}
+          onClick={() => {
+            if (window.history.length > 2) {
+              navigate(-1);
+            } else {
+              navigate("/invoices");
+            }
+          }}
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back
