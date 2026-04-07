@@ -47,6 +47,21 @@ interface ExtractionResultStatusResponse {
   error?: string;
 }
 
+function toFriendlyExtractionError(rawError?: string): string {
+  const fallback = "Upload failed. Please try again later";
+  if (!rawError) return fallback;
+
+  const normalized = rawError.toLowerCase();
+  if (
+    normalized.includes("extraction failed") &&
+    normalized.includes("no data could be extracted")
+  ) {
+    return "Please check the entered document and try again.";
+  }
+
+  return rawError;
+}
+
 export interface PendingReviewsResponse {
   invoices: ExtractionResult[];
   purchase_orders: ExtractionResult[];
@@ -84,6 +99,9 @@ export const extractionService = {
     const { data } = await api.get<ExtractionResultStatusResponse>(
       ENDPOINTS.EXTRACTION.RESULT(jobId)
     );
+    if (data.status === "FAILED") {
+      data.error = toFriendlyExtractionError(data.error);
+    }
     return data;
   },
 
@@ -123,9 +141,7 @@ export const extractionService = {
         }
 
         if (status.status === "FAILED") {
-          throw new Error(
-            "Upload failed. Please try again later " 
-          );
+          throw new Error(toFriendlyExtractionError(status.error));
         }
       } catch (err) {
         // Only ignore transient HTTP/network issues while polling.

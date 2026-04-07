@@ -29,6 +29,7 @@ import {
   Hash,
   Mail,
   Sparkles,
+  Workflow,
 } from "lucide-react";
 
 /* ─── Helpers ──────────────────────────────────────────────── */
@@ -881,6 +882,8 @@ export function ValidationGroupDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showBackToTop, setShowBackToTop] = useState(false);
+  const [accepting, setAccepting] = useState(false);
+  const [denying, setDenying] = useState(false);
 
   // Track scroll position for back-to-top button
   const handleScroll = useCallback(() => {
@@ -904,26 +907,54 @@ export function ValidationGroupDetailPage() {
     main?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  useEffect(() => {
+  const fetchResults = useCallback(async () => {
     if (!groupId) return;
-    const fetchResults = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const results = await validationService.getGroupResults(Number(groupId));
-        setData(results);
-      } catch (err: unknown) {
-        const msg =
-          (err as { response?: { data?: { detail?: string } } }).response?.data
-            ?.detail ??
-          (err instanceof Error ? err.message : "Failed to load validation results");
-        setError(msg);
-      } finally {
-        setLoading(false);
-      }
-    };
-    void fetchResults();
+    setLoading(true);
+    setError(null);
+    try {
+      const results = await validationService.getGroupResults(Number(groupId));
+      setData(results);
+    } catch (err: unknown) {
+      const msg =
+        (err as { response?: { data?: { detail?: string } } }).response?.data
+          ?.detail ??
+        (err instanceof Error ? err.message : "Failed to load validation results");
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
   }, [groupId]);
+
+  useEffect(() => {
+    void fetchResults();
+  }, [fetchResults]);
+
+  const handleAcceptGroup = async () => {
+    if (!data?.group_id) return;
+    setAccepting(true);
+    try {
+      await validationService.acceptGroup(data.group_id);
+      await fetchResults();
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || err.message || "Failed to accept group");
+    } finally {
+      setAccepting(false);
+    }
+  };
+
+  const handleDenyGroup = async () => {
+    if (!data?.group_id) return;
+    if (!window.confirm("Are you sure you want to deny this group? This will unlink the documents and return them to the unmatched queue.")) return;
+    
+    setDenying(true);
+    try {
+      await validationService.denyGroup(data.group_id);
+      navigate("/validation");
+    } catch (err: any) {
+      setError(err?.response?.data?.detail || err.message || "Failed to deny group");
+      setDenying(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -985,7 +1016,7 @@ export function ValidationGroupDetailPage() {
           </p>
         </div>
         <div className="ml-auto flex items-center gap-2">
-          {!data.accepted_for_payment && (
+          {data.group_status !== "pending_review" && !data.accepted_for_payment && (
             <Button
               variant="outline"
               onClick={() => navigate(`/acceptance/${data.group_id}`)}
@@ -994,12 +1025,71 @@ export function ValidationGroupDetailPage() {
               Accept for Payment
             </Button>
           )}
-          <Button onClick={() => navigate(`/validation/${data.group_id}/send-mail`)}>
-            <Mail className="h-4 w-4" />
-            Send Mail
+          <Button
+            variant="outline"
+            onClick={() => navigate(`/validation/${data.group_id}/flow`)}
+          >
+            <Workflow className="h-4 w-4" />
+            View Flow
           </Button>
+          {data.group_status !== "pending_review" && (
+            <Button onClick={() => navigate(`/validation/${data.group_id}/send-mail`)}>
+              <Mail className="h-4 w-4" />
+              Send Mail
+            </Button>
+          )}
         </div>
       </div>
+
+      {/* Pending Review Banner */}
+      {data.group_status === "pending_review" && (
+        <Card className="border-warning-border bg-warning-bg-subtle shadow-sm mt-4">
+          <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-warning-fg shrink-0 mt-0.5" />
+              <div>
+                <h3 className="text-sm font-semibold text-warning-fg">
+                  Review Required: Fuzzy Match Detected
+                </h3>
+                <p className="text-sm text-warning-fg/80 mt-1 max-w-2xl">
+                  This group was created automatically via fuzzy matching. Please review the 
+                  matched documents below. If correct, accept the group to send it to the 
+                  validation queue. If incorrect, deny the group to unlink the documents.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-white hover:bg-red-50 hover:text-red-600 border-red-200"
+                onClick={handleDenyGroup}
+                disabled={denying || accepting}
+              >
+                {denying ? (
+                  <LoadingSpinner size={14} className="mr-1.5" />
+                ) : (
+                  <XCircle className="h-4 w-4 mr-1.5" />
+                )}
+                Deny Match
+              </Button>
+              <Button
+                size="sm"
+                className="bg-emerald-600 hover:bg-emerald-700 text-white border-0"
+                onClick={handleAcceptGroup}
+                disabled={accepting || denying}
+              >
+                {accepting ? (
+                  <LoadingSpinner size={14} className="mr-1.5" />
+                ) : (
+                  <CheckCircle2 className="h-4 w-4 mr-1.5" />
+                )}
+                Accept Match
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Section quick-nav */}
       <nav aria-label="Page sections" className="flex flex-wrap gap-2">

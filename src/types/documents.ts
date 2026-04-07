@@ -222,6 +222,8 @@ export interface DiscrepancyOut {
 export interface MappedItemPair {
   link_id: number;
   matched_quantity?: number;
+  invoice_id: number;
+  po_id: number;
 
   invoice_item_id: number;
   invoice_item_code?: string;
@@ -245,6 +247,7 @@ export interface MappedItemsOut {
 
 export interface ValidationResultsOut {
   group_id: number;
+  group_status: string;
   validation_status?: string;
   match_status?: string;
   invoices: InvoiceBrief[];
@@ -328,4 +331,70 @@ export interface PayNowResponse {
   message: string;
   group_id: number;
   payment_status: string;
+}
+
+// ── Flow Visualization ──────────────────────────────────────
+
+export interface FlowInvoiceItemOut {
+  id: number;
+  invoice_id: number;
+  line_number?: number;
+  item_code?: string;
+  item_description?: string;
+  quantity?: number;
+  unit_price?: number;
+  total_price?: number;
+}
+
+export interface FlowPOItemOut {
+  id: number;
+  po_id: number;
+  line_number?: number;
+  item_code?: string;
+  item_description?: string;
+  quantity?: number;
+  unit_price?: number;
+  total_price?: number;
+}
+
+export interface FlowInvoiceBrief {
+  id: number;
+  invoice_number?: string;
+  vendor_name?: string;
+  total_amount?: number;
+  status?: string;
+  file_url?: string;
+  currency?: string;
+  due_date?: string;
+  subtotal?: number;
+  tax_amount?: number;
+  discount_amount?: number;
+  line_items: FlowInvoiceItemOut[];
+}
+
+export interface FlowPOBrief {
+  id: number;
+  po_number?: string;
+  vendor_name?: string;
+  total_amount?: number;
+  status?: string;
+  file_url?: string;
+  currency?: string;
+  po_date?: string;
+  subtotal?: number;
+  tax_amount?: number;
+  discount_amount?: number;
+  line_items: FlowPOItemOut[];
+}
+
+export interface FlowLink {
+  invoice_id: number;
+  po_id: number;
+}
+
+export interface FlowDataOut {
+  group_id: number;
+  invoices: FlowInvoiceBrief[];
+  pos: FlowPOBrief[];
+  links: FlowLink[];
 }

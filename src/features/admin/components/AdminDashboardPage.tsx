@@ -186,56 +186,61 @@ export function AdminDashboardPage() {
         />
       </div>
 
-      {/* ─── Trend Chart ─── */}
-      <Card className="rounded-2xl shadow-md border-0">
-        <CardHeader>
-          <CardTitle className="text-base font-semibold">
-            Daily Trend — Invoices vs Validations
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {points.length === 0 ? (
-            <div className="flex items-center justify-center h-32 text-sm text-muted-foreground">
-              No trend data for the selected range.
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <div className="flex items-end gap-3 min-w-[700px] h-56">
-                {points.map((point) => (
-                  <div key={point.date} className="flex-1 flex flex-col items-center gap-1">
-                    <div className="flex items-end gap-1 h-44 w-full justify-center">
-                      <div
-                        className="w-4 rounded-t-md bg-blue-500 transition-all duration-300"
-                        style={{ height: `${(point.invoices / maxY) * 100}%`, minHeight: point.invoices > 0 ? "4px" : "0" }}
-                        title={`Invoices: ${point.invoices}`}
-                      />
-                      <div
-                        className="w-4 rounded-t-md bg-emerald-500 transition-all duration-300"
-                        style={{ height: `${(point.validations / maxY) * 100}%`, minHeight: point.validations > 0 ? "4px" : "0" }}
-                        title={`Validations: ${point.validations}`}
-                      />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground font-medium">
-                      {new Date(point.date + "T00:00:00").toLocaleDateString(undefined, {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </p>
+      {/* ─── Main Content Grid ─── */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Trend Chart */}
+        <div className="lg:col-span-3 flex flex-col">
+          <Card className="rounded-2xl shadow-md border-0 h-full flex flex-col">
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base font-semibold">
+                Daily Trend — Invoices vs Validations
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="flex-1">
+              {points.length === 0 ? (
+                <div className="flex items-center justify-center h-full min-h-[160px] text-sm text-muted-foreground">
+                  No trend data for the selected range.
+                </div>
+              ) : (
+                <div className="overflow-x-auto h-full flex flex-col justify-end">
+                  <div className="flex items-end gap-3 min-w-[500px] h-56 mt-4">
+                    {points.map((point) => (
+                      <div key={point.date} className="flex-1 flex flex-col items-center gap-1">
+                        <div className="flex items-end gap-1 h-44 w-full justify-center">
+                          <div
+                            className="w-4 rounded-t-md bg-blue-500 transition-all duration-300"
+                            style={{ height: `${(point.invoices / maxY) * 100}%`, minHeight: point.invoices > 0 ? "4px" : "0" }}
+                            title={`Invoices: ${point.invoices}`}
+                          />
+                          <div
+                            className="w-4 rounded-t-md bg-emerald-500 transition-all duration-300"
+                            style={{ height: `${(point.validations / maxY) * 100}%`, minHeight: point.validations > 0 ? "4px" : "0" }}
+                            title={`Validations: ${point.validations}`}
+                          />
+                        </div>
+                        <p className="text-[10px] text-muted-foreground font-medium truncate">
+                          {new Date(point.date + "T00:00:00").toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </p>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <div className="mt-4 flex items-center gap-5 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-blue-500" /> Invoices
-                </span>
-                <span className="inline-flex items-center gap-1.5">
-                  <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" /> Validations
-                </span>
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                  <div className="mt-6 flex items-center gap-5 text-xs text-muted-foreground pb-2">
+                    <span className="inline-flex items-center gap-1.5 font-medium">
+                      <span className="h-2.5 w-2.5 rounded-sm bg-blue-500" /> Invoices Extracted
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 font-medium">
+                      <span className="h-2.5 w-2.5 rounded-sm bg-emerald-500" /> Validations Run
+                    </span>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+      </div>
     </div>
   );
 }

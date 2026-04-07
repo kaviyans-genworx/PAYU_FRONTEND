@@ -42,6 +42,7 @@ function statusVariant(
     case "partial":
     case "warning":
     case "pending":
+    case "pending_review":
       return "warning";
     case "failed":
     case "error":
@@ -68,6 +69,7 @@ function getBucket(status: string): BucketKey {
     case "partial":
     case "warning":
     case "pending":
+    case "pending_review":
     default:
       return "issues";
   }

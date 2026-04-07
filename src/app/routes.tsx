@@ -21,6 +21,7 @@ import {
   ValidationGroupsPage,
   ValidationGroupDetailPage,
   ValidationMailPage,
+  ValidationFlowPage,
 } from "@/features/validation";
 import {
   AcceptancePage,
@@ -108,6 +109,10 @@ export const router = createBrowserRouter([
           {
             path: "validation/:groupId/send-mail",
             element: <ValidationMailPage />,
+          },
+          {
+            path: "validation/:groupId/flow",
+            element: <ValidationFlowPage />,
           },
           {
             path: "acceptance/:groupId",

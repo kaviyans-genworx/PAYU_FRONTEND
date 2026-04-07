@@ -3,6 +3,7 @@ import type {
   DiscrepancyMailDraft,
   DiscrepancyMailSendPayload,
   DiscrepancyMailSendResponse,
+  FlowDataOut,
   ValidationGroupSummary,
   ValidationGroupDetail,
   ValidationResultsOut,
@@ -39,6 +40,13 @@ export const validationService = {
     return data;
   },
 
+  async getFlowData(groupId: number): Promise<FlowDataOut> {
+    const { data } = await core_axios_intance.get<FlowDataOut>(
+      `/api/validations/groups/${groupId}/flow-data`
+    );
+    return data;
+  },
+
   async getDiscrepancyMailDraft(groupId: number): Promise<DiscrepancyMailDraft> {
     const { data } = await core_axios_intance.get<DiscrepancyMailDraft>(
       `/api/validations/groups/${groupId}/discrepancy-mail-draft`
@@ -58,6 +66,20 @@ export const validationService = {
           "Content-Type": "application/json",
         },
       }
+    );
+    return data;
+  },
+
+  async acceptGroup(groupId: number): Promise<{ status: string; group_id: number }> {
+    const { data } = await core_axios_intance.post(
+      `/api/validations/groups/${groupId}/accept`
+    );
+    return data;
+  },
+
+  async denyGroup(groupId: number): Promise<{ status: string; group_id: number }> {
+    const { data } = await core_axios_intance.post(
+      `/api/validations/groups/${groupId}/deny`
     );
     return data;
   },

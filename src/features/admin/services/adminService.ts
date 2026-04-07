@@ -22,14 +22,12 @@ export interface AdminDashboardTrends {
   points: AdminDashboardTrendPoint[];
 }
 
-export interface UnmappedInvoice {
+export interface POSearchResult {
   id: number;
-  invoice_number?: string | null;
+  po_number?: string | null;
   vendor_name?: string | null;
-  vendor_email?: string | null;
   total_amount?: number | null;
-  created_at?: string | null;
-  status: string;
+  currency?: string | null;
 }
 
 export const adminService = {
@@ -49,9 +47,12 @@ export const adminService = {
     return data;
   },
 
-  async listUnmappedInvoices(): Promise<UnmappedInvoice[]> {
-    const { data } = await core_axios_intance.get<UnmappedInvoice[]>(
-      "/admin/invoices/unmapped",
+  async searchPOs(vendorEmail?: string, q?: string): Promise<POSearchResult[]> {
+    const params = new URLSearchParams();
+    if (vendorEmail) params.append("vendor_email", vendorEmail);
+    if (q) params.append("q", q);
+    const { data } = await core_axios_intance.get<POSearchResult[]>(
+      `/admin/search-pos?${params.toString()}`
     );
     return data;
   },
@@ -59,14 +60,6 @@ export const adminService = {
   async listPurchaseOrders(): Promise<PurchaseOrderOut[]> {
     const { data } = await core_axios_intance.get<PurchaseOrderOut[]>(
       "/purchase-orders",
-    );
-    return data;
-  },
-
-  async mapInvoiceToPO(invoiceId: number, poIds: number[]): Promise<{ message: string }> {
-    const { data } = await core_axios_intance.post<{ message: string }>(
-      `/admin/invoices/${invoiceId}/map-po`,
-      { po_ids: poIds },
     );
     return data;
   },
@@ -81,13 +74,6 @@ export const adminService = {
   async notifyVendor(invoiceId: number): Promise<{ message: string }> {
     const { data } = await core_axios_intance.post<{ message: string }>(
       `/admin/invoices/${invoiceId}/notify-vendor`,
-    );
-    return data;
-  },
-
-  async deleteUnmappedInvoice(invoiceId: number): Promise<{ message: string }> {
-    const { data } = await core_axios_intance.delete<{ message: string }>(
-      `/admin/invoices/${invoiceId}`,
     );
     return data;
   },

@@ -21,6 +21,7 @@
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.11.2",
+    "@xyflow/react": "^12.10.2",
     "axios": "^1.13.5",
     "chart.js": "^4.5.1",
     "class-variance-authority": "^0.7.1",
